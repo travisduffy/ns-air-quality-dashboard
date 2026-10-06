@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "fetch": "node scripts/fetch.ts",
-    "data": "npm run fetch && node scripts/summarize.ts",
+    "data": "npm run fetch && npm run data:build",
+    "data:build": "node scripts/build-data.ts",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc",
@@ -17,12 +18,17 @@
   },
   "dependencies": {
     "@travisduffy/map-engine": "file:vendor/map-engine",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "three": "^0.160.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
     "@types/node": "^24.0.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@types/three": "^0.160.0",
+    "@vitejs/plugin-react": "^6.1.2",
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",
     "vite": "^8.2.0"

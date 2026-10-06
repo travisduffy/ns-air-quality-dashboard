@@ -1,0 +1,122 @@
+:root {
+  --map-water: #aebfca;
+  --map-accent: #0b4f87;
+  --map-none-ink: #5b4a00;
+}
+.map-view {
+  min-width: 0;
+}
+.map-frame {
+  position: relative;
+  width: 100%;
+  height: 56vh;
+  min-height: 280px;
+  max-height: 720px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--map-water);
+}
+/* The engine leaves the canvas clear outside the bitmap, so the frame shows
+   through there. The sea of the bitmap is black, so a ready map gets a black
+   frame and no grey strip shows below the bitmap. */
+.map-view[data-ready='true'] .map-frame {
+  background: #000;
+}
+/* A message of a failed load sits above the canvas, clear of the frame edge. */
+.map-frame .error {
+  position: relative;
+  margin: 12px;
+}
+.map-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+.map-marker {
+  all: unset;
+  box-sizing: border-box;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 calc(var(--offset) * 24px - 12px);
+  visibility: hidden;
+  cursor: pointer;
+  will-change: transform;
+}
+.map-marker .mark {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--ink);
+  font-size: 12px;
+  line-height: 1;
+  color: var(--ink);
+}
+.map-marker.over .mark {
+  border-color: var(--over);
+  color: var(--over);
+}
+.map-marker.within .mark {
+  border-color: var(--within);
+  color: var(--within);
+}
+.map-marker.none .mark {
+  color: var(--map-none-ink);
+}
+.map-marker.picked .mark {
+  outline: 3px solid var(--map-accent);
+  outline-offset: 1px;
+}
+.map-marker .name {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + var(--label-gap));
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 0 3px;
+  border-radius: 3px;
+  color: var(--ink);
+}
+.map-marker .name[data-side='above'] {
+  top: auto;
+  bottom: calc(100% + var(--label-gap));
+}
+.map-marker .name[data-side='right'] {
+  left: calc(100% + var(--label-gap));
+  top: 50%;
+  transform: translateY(-50%);
+}
+.map-marker .name[data-side='left'] {
+  left: auto;
+  right: calc(100% + var(--label-gap));
+  top: 50%;
+  transform: translateY(-50%);
+}
+.map-marker:focus-visible .mark {
+  outline: 3px dashed var(--ink);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 3px #fff;
+}
+@media (max-width: 600px) {
+  .map-marker .name {
+    display: none;
+  }
+  .map-marker.picked .name {
+    display: block;
+  }
+  .map-frame {
+    height: 48vh;
+  }
+}

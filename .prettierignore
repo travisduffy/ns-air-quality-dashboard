@@ -1,3 +1,4 @@
 data/raw
-public/summary.json
+public/overview.json
+public/readings
 vendor

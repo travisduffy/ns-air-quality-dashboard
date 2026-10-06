@@ -1,7 +1,5 @@
 # Nova Scotia Air Quality Dashboard
 
-![The dashboard: hover a county, open Halifax County, and change the pollutant filter](docs/demo.gif)
-
 A dashboard of Nova Scotia broken down by each county by its air quality. It compares the 2025 hourly readings of the provincial monitoring stations with official air quality limits.
 
 ## Why

@@ -1,15 +1,20 @@
 import { defineConfig } from '@playwright/test'
 
+// The site lives under the base path of its Pages deploy, and each test
+// resolves its paths against it.
+const SITE_URL = 'http://127.0.0.1:4173/ns-air-quality-dashboard/'
+
 export default defineConfig({
   testDir: 'tests',
   testMatch: '*.spec.ts',
+  timeout: 60_000,
   use: {
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL: SITE_URL,
     viewport: { width: 1440, height: 900 },
   },
   webServer: {
     command: 'npm run build && npx vite preview --strictPort',
-    url: 'http://127.0.0.1:4173',
+    url: SITE_URL,
     timeout: 120_000,
   },
 })
