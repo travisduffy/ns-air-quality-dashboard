@@ -1,10 +1,15 @@
 import type {
-  Overview,
   Outage,
   SeriesReadings,
   SeriesSummary,
 } from '../scripts/derive.ts'
-import { HOUR_MS, monthStamps, monthsOf, stampMs } from '../scripts/time.ts'
+import {
+  HOUR_MS,
+  monthStamps,
+  monthsOf,
+  stampMs,
+  yearStamps,
+} from '../scripts/time.ts'
 import {
   ChartSkeleton,
   DAILY_HEIGHT,
@@ -13,9 +18,10 @@ import {
 } from './charts.tsx'
 import { count, hoursText, num, shareText } from './format.ts'
 import type { DashboardData } from './use-dashboard-data.ts'
+import type { YearStation } from './years.ts'
 import { useMemo } from 'react'
 
-type Summary = Overview['stations'][number]
+type Summary = YearStation
 
 const outageText = (o: Outage | null) =>
   o === null ? 'none' : `${hoursText(o.hours)}, ${o.start} to ${o.end}`
@@ -95,13 +101,14 @@ const SeriesCard = (props: {
   start: string | undefined
   domain: { t0: number; t1: number }
   month: string
+  year: number
 }) => {
   const { summary: s, readings: r } = props
   const v = s.verdict
   const limit = v.kind === 'none' ? null : v.limit.value
   const lt = limitText(s)
   const limitLabel = lt === null || limit === null ? '' : `limit ${num(limit)}`
-  const span = props.month === '' ? 'the whole window' : props.month
+  const span = props.month === '' ? String(props.year) : props.month
   const t0 = props.start === undefined ? 0 : stampMs(props.start)
   const values = r?.values ?? []
   const inRange = values.filter(
@@ -112,7 +119,7 @@ const SeriesCard = (props: {
   ) as number[]
   const lo = inRange.length ? Math.min(...inRange) : null
   const hi = inRange.length ? Math.max(...inRange) : null
-  const numbers = `${count(inRange.length)} readings${lo === null ? '' : `, lowest ${num(lo as number)}, highest ${num(hi as number)}`}, ${count(s.missing)} missing hours in the whole window${limit === null ? ', no official limit' : `, limit ${num(limit)} ${s.unit}`}`
+  const numbers = `${count(inRange.length)} readings${lo === null ? '' : `, lowest ${num(lo as number)}, highest ${num(hi as number)}`}, ${count(s.missing)} missing hours in ${props.year}${limit === null ? ', no official limit' : `, limit ${num(limit)} ${s.unit}`}`
   const hourlyLabel = `Hourly ${s.label} at ${props.station} in ${s.unit}, ${span}: ${numbers}. A dark strip below the chart marks each missing hour.`
   const daily = r?.daily
   const longest = s.longestOutage
@@ -138,7 +145,12 @@ const SeriesCard = (props: {
           ? 'No gap.'
           : `Longest gap: ${hoursText(longest.hours)}, ${longest.start} to ${longest.end}.`}
       </p>
-      {r === undefined && v.kind === 'daily' && (
+      {s.reported === 0 && (
+        <p className="meta" data-testid="no-readings">
+          No readings in {props.year}. Every hour is missing.
+        </p>
+      )}
+      {s.reported > 0 && r === undefined && v.kind === 'daily' && (
         <>
           <h4>Daily values ({v.statistic})</h4>
           <ChartSkeleton height={DAILY_HEIGHT} />
@@ -160,7 +172,7 @@ const SeriesCard = (props: {
           <ChartSkeleton height={110} />
         </>
       )}
-      {r === undefined && v.kind !== 'daily' && (
+      {s.reported > 0 && r === undefined && v.kind !== 'daily' && (
         <>
           <h4>Hourly readings</h4>
           <ChartSkeleton />
@@ -221,32 +233,44 @@ const SeriesCard = (props: {
           />
         </>
       )}
-      <p className="legend">
-        <span className="mk blank" aria-hidden="true">
-          ▮
-        </span>{' '}
-        strip: each dark mark is a missing hour
-      </p>
+      {s.reported > 0 && (
+        <p className="legend">
+          <span className="mk blank" aria-hidden="true">
+            ▮
+          </span>{' '}
+          strip: each dark mark is a missing hour
+        </p>
+      )}
     </article>
   )
 }
 
 export const Readings = (props: { dashboard: DashboardData }) => {
-  const { overview, station, setStation, month, setMonth, data, failed } =
-    props.dashboard
-  const w = overview.window
+  const {
+    overview,
+    year,
+    setYear,
+    stations,
+    station,
+    setStation,
+    month,
+    setMonth,
+    data,
+    failed,
+  } = props.dashboard
+  const range = yearStamps(year)
   const domain = useMemo(() => {
     if (month === '') {
-      return { t0: stampMs(w.start), t1: stampMs(w.end) }
+      return { t0: range.first, t1: range.last }
     }
     const r = monthStamps(month)
     return {
-      t0: Math.max(r.first, stampMs(w.start)),
-      t1: Math.min(r.last, stampMs(w.end)),
+      t0: Math.max(r.first, range.first),
+      t1: Math.min(r.last, range.last),
     }
-  }, [month, w.start, w.end])
+  }, [month, range.first, range.last])
 
-  const picked = overview.stations.find(s => s.station === station)
+  const picked = stations.find(s => s.station === station)
   if (picked === undefined) {
     throw new Error(`the overview holds no station ${station}`)
   }
@@ -260,7 +284,7 @@ export const Readings = (props: { dashboard: DashboardData }) => {
       className="readings"
       aria-busy={data === undefined && failed === null}
     >
-      <h2 id="readings-h">Readings</h2>
+      <h2 id="readings-h">Readings, {year}</h2>
       <div className="controls">
         <label>
           Station{' '}
@@ -269,8 +293,22 @@ export const Readings = (props: { dashboard: DashboardData }) => {
             onChange={e => setStation(e.target.value)}
             data-testid="station-picker"
           >
-            {overview.stations.map(s => (
+            {stations.map(s => (
               <option key={s.station}>{s.station}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Year{' '}
+          <select
+            value={year}
+            onChange={e => setYear(Number(e.target.value))}
+            data-testid="readings-year-picker"
+          >
+            {overview.years.map(y => (
+              <option key={y} value={y}>
+                {y}
+              </option>
             ))}
           </select>
         </label>
@@ -281,8 +319,8 @@ export const Readings = (props: { dashboard: DashboardData }) => {
             onChange={e => setMonth(e.target.value)}
             data-testid="month-picker"
           >
-            <option value="">Whole window</option>
-            {monthsOf(stampMs(w.start), stampMs(w.end)).map(m => (
+            <option value="">Whole year</option>
+            {monthsOf(range.first, range.last).map(m => (
               <option key={m} value={m}>
                 {m}
               </option>
@@ -296,7 +334,9 @@ export const Readings = (props: { dashboard: DashboardData }) => {
       {failed === null &&
         ordered.map(s => {
           const r = data?.series.find(x => x.pollutant === s.pollutant)
-          return data !== undefined && r === undefined ? null : (
+          return data !== undefined &&
+            r === undefined &&
+            s.reported > 0 ? null : (
             <SeriesCard
               key={s.pollutant}
               station={picked.station}
@@ -305,6 +345,7 @@ export const Readings = (props: { dashboard: DashboardData }) => {
               start={data?.start}
               domain={domain}
               month={month}
+              year={year}
             />
           )
         })}
@@ -325,8 +366,9 @@ export const Health = (props: {
     <section aria-labelledby="health-h" className="health">
       <h2 id="health-h">Station health</h2>
       <p className="meta">
-        Share of hours that reported, over all pollutants of the station, and
-        the longest outage of any one pollutant. Tap a row to show that station.
+        Share of hours that reported, over the pollutants that the station
+        reported in the year, and the longest outage of any one pollutant. Tap a
+        row to show that station.
       </p>
       <table>
         <thead>
@@ -409,9 +451,10 @@ export const Health = (props: {
 export const Footer = () => (
   <footer>
     <p>
-      This screen is not live: it shows a fixed window of published data and
-      nothing after the data end. It gives no forecast, no health index, and no
-      value that the source did not publish. A missing hour is shown as missing.
+      This screen is not live. It shows historical hourly readings, one checked
+      year at a time, and nothing after the data end. It gives no forecast, no
+      health index, and no value that the source did not publish. A missing hour
+      is shown as missing.
     </p>
   </footer>
 )

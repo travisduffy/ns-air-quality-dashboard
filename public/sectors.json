@@ -92,9 +92,6 @@
   "ff2a00": {
     "name": "Victoria, NB"
   },
-  "37ff00": {
-    "name": "Madawaska, NB"
-  },
   "0d00ff": {
     "name": "Restigouche, NB"
   },
@@ -106,5 +103,11 @@
   },
   "dd00ff": {
     "name": "Kent, NB"
+  },
+  "ffffff": {
+    "name": "Sea"
+  },
+  "000000": {
+    "name": "Outside the map"
   }
 }

@@ -1,7 +1,6 @@
 :root {
   --map-water: #aebfca;
   --map-accent: #0b4f87;
-  --map-none-ink: #5b4a00;
 }
 .map-view {
   min-width: 0;
@@ -17,12 +16,8 @@
   border-radius: 6px;
   background: var(--map-water);
 }
-/* The engine leaves the canvas clear outside the bitmap, so the frame shows
-   through there. The sea of the bitmap is black, so a ready map gets a black
-   frame and no grey strip shows below the bitmap. */
-.map-view[data-ready='true'] .map-frame {
-  background: #000;
-}
+/* The engine leaves the canvas clear outside the bitmap, so the water of the
+   frame shows through there. */
 /* A message of a failed load sits above the canvas, clear of the frame edge. */
 .map-frame .error {
   position: relative;
@@ -36,87 +31,114 @@
   display: block;
   touch-action: none;
 }
-.map-marker {
-  all: unset;
-  box-sizing: border-box;
+/* The tip follows the pointer, and it never takes the pointer itself. */
+.map-tip {
   position: absolute;
   left: 0;
   top: 0;
-  width: 24px;
-  height: 24px;
-  margin: -12px 0 0 calc(var(--offset) * 24px - 12px);
-  visibility: hidden;
-  cursor: pointer;
-  will-change: transform;
-}
-.map-marker .mark {
+  margin: 16px 0 0 14px;
+  max-width: 220px;
   display: grid;
-  place-items: center;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: #fff;
-  border: 2px solid var(--ink);
+  gap: 2px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--line);
   font-size: 12px;
-  line-height: 1;
+  color: var(--ink);
+  pointer-events: none;
+  z-index: 2;
+}
+.map-chooser {
+  position: absolute;
+  z-index: 3;
+  width: 200px;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 6px;
+  background: #fff;
+  border: 2px solid var(--map-accent);
+  font-size: 14px;
   color: var(--ink);
 }
-.map-marker.over .mark {
-  border-color: var(--over);
-  color: var(--over);
+.map-chooser button {
+  min-height: 36px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
 }
-.map-marker.within .mark {
-  border-color: var(--within);
-  color: var(--within);
+.map-chooser button.close {
+  color: var(--map-accent);
 }
-.map-marker.none .mark {
-  color: var(--map-none-ink);
+.map-chooser button:hover {
+  background: #eef3f7;
 }
-.map-marker.picked .mark {
+.county-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.county-list .county {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.county-list .county-name {
+  font-weight: 600;
+}
+.county-list .county-stations {
+  color: var(--ink-soft, #4a5a66);
+}
+.county-list .county.picked {
   outline: 3px solid var(--map-accent);
   outline-offset: 1px;
 }
-.map-marker .name {
-  position: absolute;
-  left: 50%;
-  top: calc(100% + var(--label-gap));
-  transform: translateX(-50%);
-  white-space: nowrap;
-  font-size: 11px;
-  font-weight: 600;
-  background: rgba(255, 255, 255, 0.85);
-  padding: 0 3px;
-  border-radius: 3px;
-  color: var(--ink);
-}
-.map-marker .name[data-side='above'] {
-  top: auto;
-  bottom: calc(100% + var(--label-gap));
-}
-.map-marker .name[data-side='right'] {
-  left: calc(100% + var(--label-gap));
-  top: 50%;
-  transform: translateY(-50%);
-}
-.map-marker .name[data-side='left'] {
-  left: auto;
-  right: calc(100% + var(--label-gap));
-  top: 50%;
-  transform: translateY(-50%);
-}
-.map-marker:focus-visible .mark {
+.county-list .county:focus-visible {
   outline: 3px dashed var(--ink);
-  outline-offset: 3px;
-  box-shadow: 0 0 0 3px #fff;
+  outline-offset: 2px;
+}
+.swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  vertical-align: -1px;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.legend .key {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 @media (max-width: 600px) {
-  .map-marker .name {
-    display: none;
-  }
-  .map-marker.picked .name {
-    display: block;
-  }
   .map-frame {
     height: 48vh;
   }
+}
+/* The canvas stays hidden until the palette is applied. */
+.map-view[data-ready='false'] .map-canvas {
+  visibility: hidden;
 }

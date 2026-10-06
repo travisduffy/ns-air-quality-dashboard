@@ -1,18 +1,25 @@
 import { expect, test, type Page } from '@playwright/test'
 
 type Outage = { hours: number; start: string; end: string; pollutant?: string }
+type YearHealth = {
+  year: number
+  expected: number
+  reported: number
+  longestOutage: Outage | null
+}
+
 type Overview = {
   window: { start: string; end: string }
-  stations: {
-    station: string
-    health: {
-      expected: number
-      reported: number
-      reportedShare: number
-      longestOutage: Outage | null
-    }
-  }[]
+  years: number[]
+  stations: { station: string; health: YearHealth[] }[]
 }
+
+// The page opens on the newest year.
+const YEAR = 2025
+const healthOf = (overview: Overview, name: string, year = YEAR) =>
+  overview.stations
+    .find(s => s.station === name)!
+    .health.find(h => h.year === year)!
 
 // The readings files sit under the base path of the site.
 const READINGS_ROUTE = '**/readings/**'
@@ -54,14 +61,14 @@ const checkScreen = async (page: Page, overview: Overview) => {
   await expect(rows).toHaveCount(overview.stations.length)
 
   for (const name of ['Aylesford', 'Sydney']) {
-    const station = overview.stations.find(s => s.station === name)!
+    const health = healthOf(overview, name)
     const row = page.locator(
       `[data-testid="health-row"][data-station="${name}"]`
     )
     await expect(row.locator('[data-cell="share"]')).toHaveText(
-      floorShare(station.health.reported, station.health.expected)
+      floorShare(health.reported, health.expected)
     )
-    const outage = station.health.longestOutage!
+    const outage = health.longestOutage!
     const text = (
       await row.locator('[data-cell="outage"]').innerText()
     ).replace(/\s+/g, ' ')
@@ -75,7 +82,7 @@ const checkScreen = async (page: Page, overview: Overview) => {
   const sydney = page.locator(
     '[data-testid="health-row"][data-station="Sydney"]'
   )
-  await expect(sydney.locator('[data-cell="share"]')).toHaveText('94.1%')
+  await expect(sydney.locator('[data-cell="share"]')).toHaveText('94.2%')
   await expect(sydney.locator('[data-cell="outage"]')).toContainText(
     '517 hours'
   )
@@ -134,18 +141,40 @@ for (const width of [1440, 390]) {
   })
 }
 
-test('the map frames Nova Scotia and puts a pin on each station', async ({
+test('the map has no pins, and a county with one station opens it', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('./')
   await expect(page.locator('.map-view[data-ready="true"]')).toBeVisible()
-  const markers = page.getByTestId('map-marker')
-  await expect(markers).toHaveCount(7)
-  await expect(markers.first()).toBeVisible()
-  await markers.filter({ hasText: 'Pictou' }).click()
+  await expect(page.locator('.map-marker')).toHaveCount(0)
+  const counties = page.getByTestId('map-county')
+  await expect(counties).toHaveCount(5)
+  await counties.filter({ hasText: 'Pictou' }).click()
   await expect(page.getByTestId('c-detail')).toBeVisible()
   await expect(page.locator('#c-detail-h')).toHaveText('Pictou')
+})
+
+test('a county of two stations opens a chooser by keyboard', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('./')
+  await expect(page.locator('.map-view[data-ready="true"]')).toBeVisible()
+  const kings = page.locator(
+    '[data-testid="map-county"][data-county="Kings, NS"]'
+  )
+  await kings.focus()
+  await page.keyboard.press('Enter')
+  const chooser = page.getByTestId('map-chooser')
+  await expect(chooser.getByRole('button', { name: 'Kentville' })).toBeVisible()
+  await expect(chooser.getByRole('button', { name: 'Aylesford' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(chooser).toHaveCount(0)
+  await expect(kings).toBeFocused()
+  await page.keyboard.press('Enter')
+  await chooser.getByRole('button', { name: 'Kentville' }).click()
+  await expect(page.locator('#c-detail-h')).toHaveText('Kentville')
 })
 
 test('a failed load of the map code leaves the tiles up', async ({ page }) => {
@@ -154,7 +183,7 @@ test('a failed load of the map code leaves the tiles up', async ({ page }) => {
   await expect(page.locator('.map-frame .error')).toContainText(
     'Could not load the map'
   )
-  await expect(page.getByTestId('c-tile')).toHaveCount(7)
+  await expect(page.getByTestId('c-tile')).toHaveCount(8)
 })
 
 // Sum every layout shift entry, also the ones that follow an input. That is
@@ -183,8 +212,8 @@ const waitForIdle = async (page: Page) => {
   await expect(page.locator('[data-skeleton]')).toHaveCount(0)
 }
 
-// A station file is about 134 kB, so the page asks for one only when a station
-// is picked.
+// A readings file is about 130 to 320 kB, so the page asks for one only when a
+// station is picked, and then only for the chosen year.
 test('no readings load before a station is picked', async ({ page }) => {
   const asked: string[] = []
   page.on('request', request => {
@@ -195,13 +224,13 @@ test('no readings load before a station is picked', async ({ page }) => {
   await page.goto('./')
   await expect(page.locator('.map-view[data-ready="true"]')).toBeVisible()
   await expect(page.locator('.c-tile-pick[aria-pressed="true"]')).toHaveCount(0)
-  await expect(page.locator('.map-marker[aria-pressed="true"]')).toHaveCount(0)
+  await expect(page.locator('.county[aria-pressed="true"]')).toHaveCount(0)
   expect(asked).toHaveLength(0)
 
   await openStation(page, 'Pictou')
   await waitForIdle(page)
   expect(asked).toHaveLength(1)
-  expect(asked[0]).toContain('readings/Pictou.json')
+  expect(asked[0]).toContain('readings/Pictou/2025.json')
 })
 
 test('Escape and the back button give the focus back to the tile', async ({
@@ -345,4 +374,113 @@ test('the skeleton does not move when the user asks for reduced motion', async (
   expect(await getAnimationName()).toBe('none')
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   expect(await getAnimationName()).toBe('shimmer')
+})
+
+test('the header says that the data is historical, and nothing says live', async ({
+  page,
+}) => {
+  await page.goto('./')
+  await expect(page).toHaveTitle(/historical data, 2016 - 2025/)
+  const header = page.locator('.c-title')
+  await expect(header).toContainText(
+    'Historical data: hourly readings 2016 - 2025, published by Nova Scotia Open Data, released one checked year at a time.'
+  )
+  await expect(page.locator('footer')).toContainText('This screen is not live')
+  await expect(page.getByTestId('c-limits-note')).toHaveText(
+    'Every year is judged against the same current limits.'
+  )
+  const text = (await page.locator('body').innerText()).toLowerCase()
+  for (const word of ['real-time', 'realtime', 'up to date', 'latest']) {
+    expect(text).not.toContain(word)
+  }
+})
+
+test('the year selector holds 2016 to 2025, opens on 2025, and drives the tiles', async ({
+  page,
+}) => {
+  await page.goto('./')
+  const select = page.getByTestId('c-year-select')
+  expect(await select.locator('option').allTextContents()).toEqual(
+    Array.from({ length: 10 }, (_, i) => String(2016 + i))
+  )
+  await expect(select).toHaveValue('2025')
+  const tile = (name: string) =>
+    page.locator(`[data-testid="c-tile"][data-station="${name}"]`)
+  await expect(tile('Aylesford')).toHaveAttribute('data-verdict', 'over')
+  await expect(tile('Halifax')).toHaveAttribute('data-verdict', 'nodata')
+  await select.selectOption('2016')
+  await expect(page.locator('#c-grid-h')).toContainText('2016')
+  await expect(tile('Aylesford')).toHaveAttribute('data-verdict', 'within')
+  await expect(tile('Halifax')).toHaveAttribute('data-verdict', 'within')
+  await expect(tile('Halifax Johnston')).toHaveAttribute(
+    'data-verdict',
+    'nodata'
+  )
+  await expect(tile('Halifax Johnston')).toContainText('No readings in 2016.')
+})
+
+test('each tile has a strip of ten cells, and a year with no readings is missing', async ({
+  page,
+}) => {
+  await page.goto('./')
+  const strip = page.locator(
+    '[data-testid="c-tile"][data-station="Halifax Johnston"] .c-years li'
+  )
+  await expect(strip).toHaveCount(10)
+  // The station began in 2018, so 2016 and 2017 are missing, in text too.
+  await expect(strip.nth(0)).toHaveAttribute('data-state', 'missing')
+  await expect(strip.nth(1)).toHaveAttribute('data-state', 'missing')
+  await expect(strip.nth(2)).not.toHaveAttribute('data-state', 'missing')
+  await expect(strip.nth(0).locator('.sr-only')).toHaveText('2016: no readings')
+  await expect(strip.nth(9).locator('.sr-only')).toHaveText(
+    /^2025: peak \d+% of the limit$/
+  )
+  await expect(strip.nth(9)).toHaveClass(/on/)
+  const labels = await strip.locator('.sr-only').allTextContents()
+  expect(labels.map(l => l.slice(0, 4))).toEqual(
+    Array.from({ length: 10 }, (_, i) => String(2016 + i))
+  )
+})
+
+test('a readings file loads for the picked station and year only', async ({
+  page,
+}) => {
+  const asked: string[] = []
+  page.on('request', request => {
+    if (request.url().includes('/readings/')) {
+      asked.push(decodeURIComponent(request.url()))
+    }
+  })
+  await page.goto('./')
+  await page.getByTestId('c-year-select').selectOption('2019')
+  await expect(page.locator('.map-view[data-ready="true"]')).toBeVisible()
+  expect(asked).toHaveLength(0)
+  await openStation(page, 'Sydney')
+  await waitForIdle(page)
+  expect(asked).toHaveLength(1)
+  expect(asked[0]).toContain('readings/Sydney/2019.json')
+  await expect(page.locator('#readings-h')).toHaveText('Readings, 2019')
+  await expect(page.getByTestId('month-picker').locator('option')).toHaveCount(
+    13
+  )
+  await page.getByTestId('readings-year-picker').selectOption('2016')
+  await expect(page.locator('#readings-h')).toHaveText('Readings, 2016')
+  await expect(page.locator('[data-series="CO"] svg[data-chart]')).toBeVisible()
+  expect(asked).toHaveLength(2)
+  expect(asked[1]).toContain('readings/Sydney/2016.json')
+  for (const label of await getChartLabels(page)) {
+    expect(label).toContain('2016')
+  }
+})
+
+test('a series with no reading in the year shows as missing in the readings', async ({
+  page,
+}) => {
+  await page.goto('./')
+  await page.getByTestId('c-year-select').selectOption('2016')
+  await openStation(page, 'Halifax Johnston')
+  await expect(page.getByTestId('no-readings').first()).toContainText(
+    'No readings in 2016'
+  )
+  await expect(page.locator('svg[data-chart]')).toHaveCount(0)
 })

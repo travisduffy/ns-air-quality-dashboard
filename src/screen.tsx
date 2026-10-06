@@ -94,7 +94,7 @@ const StationSearch = ({ overview, onPick }: StationSearchProps) => {
 }
 
 export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
-  const { overview, station, setStation } = dashboard
+  const { overview, year, setYear, stations, station, setStation } = dashboard
   const pollutants = useMemo(() => getPollutants(overview), [overview])
   const [pollutant, setPollutant] = useState(
     pollutants.some(p => p.code === DEFAULT_POLLUTANT)
@@ -102,28 +102,28 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
       : (pollutants[0]?.code ?? '')
   )
   const [open, setOpen] = useState(false)
-  const [hot, setHot] = useState<string | null>(null)
+  const [hot, setHot] = useState<string[]>([])
   const detailRef = useRef<HTMLElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const trigger = useRef<HTMLElement | null>(null)
 
   const scaleMax = useMemo(
-    () => getScaleMax(overview.stations, pollutant),
-    [overview, pollutant]
+    () => getScaleMax(stations, pollutant),
+    [stations, pollutant]
   )
   const label = pollutants.find(p => p.code === pollutant)?.label ?? pollutant
-  const picked = overview.stations.find(s => s.station === station)
+  const picked = stations.find(s => s.station === station)
   if (station !== null && picked === undefined) {
     throw new Error(`the overview holds no station ${station}`)
   }
   const overall = picked === undefined ? null : getStationVerdict(picked)
   const getVerdict = useCallback(
     (name: string) => {
-      const found = overview.stations.find(s => s.station === name)
+      const found = stations.find(s => s.station === name)
       const series = found && findSeries(found, pollutant)
       return series ? getSeriesVerdict(series) : 'none'
     },
-    [overview, pollutant]
+    [stations, pollutant]
   )
 
   const pick = (name: string) => {
@@ -175,24 +175,35 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
 
-  const setHotFromPin = (target: EventTarget) => {
-    const pin = (target as HTMLElement).closest<HTMLElement>('.map-marker')
-    setHot(pin?.dataset.station ?? null)
-  }
-
   const source = overview.source
-  const first = overview.window.start.slice(0, 10)
-  const last = overview.window.end.slice(0, 10)
-  const data = `${first} to ${last}`
+  const first = overview.years[0]
+  const last = overview.years[overview.years.length - 1]
 
   return (
     <main className="c-page">
       <header className="c-top">
         <div className="c-title">
           <h1>{overview.project}</h1>
-          <p>Nova Scotia stations, hourly readings, {data}.</p>
+          <p>
+            Historical data: hourly readings {first} - {last}, published by Nova
+            Scotia Open Data, released one checked year at a time.
+          </p>
         </div>
         <StationSearch overview={overview} onPick={pick} />
+        <label className="c-year">
+          <span>Year</span>
+          <select
+            value={year}
+            onChange={event => setYear(Number(event.target.value))}
+            data-testid="c-year-select"
+          >
+            {overview.years.map(y => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </label>
         <div className="c-pollutants">
           <label className="c-select">
             <span>Pollutant</span>
@@ -249,7 +260,7 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
             <div className="layout">
               <Readings dashboard={dashboard} />
               <Health
-                stations={overview.stations}
+                stations={stations}
                 picked={picked.station}
                 onPick={setStation}
               />
@@ -257,24 +268,32 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
           </section>
         ) : null}
         <section className="c-grid" aria-labelledby="c-grid-h" hidden={open}>
-          <h2 id="c-grid-h">{label} at each station</h2>
+          <h2 id="c-grid-h">
+            {label} at each station, {year}
+          </h2>
           <p className="c-note">
-            Every tile uses the same scale. The bar is the highest value as a
-            share of the limit, and the tick is the limit. The strip below it is
-            the share of hours that reported; the hatched part is missing. Pick
-            a tile or a pin for the full readings.
+            Every tile uses the same scale for all years. The bar is the highest
+            value of {year} as a share of the limit, and the tick is the limit.
+            The strip below it is the share of hours that reported; the hatched
+            part is missing. The ten small cells are the yearly peak from{' '}
+            {first} to {last}, and a dashed cell is a year with no readings.
+            Pick a tile or a county for the full readings.
+          </p>
+          <p className="c-note" data-testid="c-limits-note">
+            Every year is judged against the same current limits.
           </p>
           <div className="c-tiles">
-            {overview.stations.map(s => (
+            {stations.map(s => (
               <Tile
                 key={s.station}
                 station={s}
                 pollutant={pollutant}
+                year={year}
                 scaleMax={scaleMax}
                 picked={s.station === station}
-                hot={s.station === hot}
+                hot={hot.includes(s.station)}
                 onPick={pick}
-                onHot={setHot}
+                onHot={name => setHot(name === null ? [] : [name])}
               />
             ))}
           </div>
@@ -295,6 +314,25 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
               <dt>Time</dt>
               <dd>{overview.window.timeNote}</dd>
             </div>
+            <div>
+              <dt>Limits</dt>
+              <dd>
+                Every year is judged against the same current limits, the ones
+                shown on each card.
+              </dd>
+            </div>
+            {source.corrections.length > 0 && (
+              <div>
+                <dt>Changes to the source rows</dt>
+                <dd data-testid="corrections">
+                  <ul>
+                    {source.corrections.map(text => (
+                      <li key={text}>{text}</li>
+                    ))}
+                  </ul>
+                </dd>
+              </div>
+            )}
             <div>
               <dt>Source</dt>
               <dd>
@@ -317,13 +355,7 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
         <Footer />
       </div>
 
-      <div
-        className="c-map"
-        onPointerOver={event => setHotFromPin(event.target)}
-        onPointerLeave={() => setHot(null)}
-        onFocus={event => setHotFromPin(event.target)}
-        onBlur={() => setHot(null)}
-      >
+      <div className="c-map">
         <Suspense
           fallback={
             <div className="map-view">
@@ -336,7 +368,7 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
             station={station}
             onPick={pick}
             getVerdict={getVerdict}
-            hotStation={hot ?? undefined}
+            onHover={setHot}
           />
         </Suspense>
       </div>

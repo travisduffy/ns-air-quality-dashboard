@@ -9,6 +9,10 @@ import {
   monthsOf,
   msStamp,
   stampMs,
+  yearHours,
+  yearOf,
+  yearStamps,
+  yearsOf,
 } from '../scripts/time.ts'
 
 const FIRST = stampMs('2025-01-01T00:00:00')
@@ -77,4 +81,30 @@ test('a stamp gives the hour that ends at the stamp', () => {
     start: stampMs('2025-01-31T23:00:00'),
     end: s,
   })
+})
+
+test('a year has the stamps January 1 at 01:00 to January 1 of the next year at 00:00', () => {
+  const r = yearStamps(2016)
+  assert.equal(msStamp(r.first), '2016-01-01T01:00:00')
+  assert.equal(msStamp(r.last), '2017-01-01T00:00:00')
+  assert.equal(yearHours(2016), 8784)
+  assert.equal(yearHours(2025), 8760)
+})
+
+test('the stamp of midnight on January 1 is in the year before', () => {
+  assert.equal(yearOf(stampMs('2017-01-01T00:00:00')), 2016)
+  assert.equal(yearOf(stampMs('2017-01-01T01:00:00')), 2017)
+})
+
+test('the ten years of the window are 2016 to 2025, and each has twelve months', () => {
+  const first = stampMs('2016-01-01T01:00:00')
+  const last = stampMs('2026-01-01T00:00:00')
+  assert.deepEqual(
+    yearsOf(first, last),
+    [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+  )
+  for (const y of yearsOf(first, last)) {
+    const r = yearStamps(y)
+    assert.equal(monthsOf(r.first, r.last).length, 12)
+  }
 })

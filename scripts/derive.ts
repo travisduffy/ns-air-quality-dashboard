@@ -1,6 +1,13 @@
 import { noLimitReasons, unknownLimitReason } from './limit-choice.ts'
 import type { ChosenLimit, Limit, LoadedData, RawSeries } from './load.ts'
-import { HOUR_MS, dayOf, msStamp } from './time.ts'
+import {
+  HOUR_MS,
+  dayOf,
+  msStamp,
+  yearHours,
+  yearStamps,
+  yearsOf,
+} from './time.ts'
 
 export type Gap = { start: string; end: string; hours: number }
 
@@ -38,6 +45,8 @@ export type Verdict =
 
 export type Outage = { hours: number; start: string; end: string }
 
+// The summary of one series in one year, as the page shows it. The page builds
+// it from a YearSummary and the limit of the series.
 export type SeriesSummary = {
   pollutant: string
   label: string
@@ -59,6 +68,45 @@ export type StationHealth = {
   longestOutage: (Outage & { pollutant: string }) | null
 }
 
+// A verdict of one year. The limit is the same for every year, so the series
+// holds it once.
+export type YearVerdict =
+  | Omit<Extract<Verdict, { kind: 'hourly' }>, 'limit'>
+  | Omit<Extract<Verdict, { kind: 'daily' }>, 'limit'>
+  | { kind: 'none' }
+
+// The hours of a year that a series reported is `reported`. The expected hours
+// are the hours of the year, so a year before the series began has none
+// reported, and all its hours are missing.
+export type YearSummary = {
+  year: number
+  reported: number
+  gapCount: number
+  longestOutage: Outage | null
+  verdict: YearVerdict
+}
+
+export type SeriesOverview = {
+  pollutant: string
+  label: string
+  unit: string
+  datasetId: string
+  // The current limit, the same for every year. Null when none is official.
+  limit: Limit | null
+  reason: string | null
+  // The first and the last stamp that the series reported, or null for none.
+  first: string | null
+  last: string | null
+  years: YearSummary[]
+}
+
+export type YearHealth = {
+  year: number
+  expected: number
+  reported: number
+  longestOutage: (Outage & { pollutant: string }) | null
+}
+
 export type Overview = {
   project: string
   source: {
@@ -67,12 +115,16 @@ export type Overview = {
     licence: { name: string; url: string }
     fetchedFirst: string
     fetchedLast: string
+    // The corrections that the build made to the source rows, one sentence
+    // each.
+    corrections: string[]
   }
   window: { start: string; end: string; hours: number; timeNote: string }
+  years: number[]
   stations: {
     station: string
-    health: StationHealth
-    series: SeriesSummary[]
+    health: YearHealth[]
+    series: SeriesOverview[]
   }[]
 }
 
@@ -86,8 +138,11 @@ export type SeriesReadings = {
   daily?: Daily[]
 }
 
+// The readings of one station in one year. A series with no reading in the
+// year is not listed.
 export type StationReadings = {
   station: string
+  year: number
   start: string
   end: string
   stepHours: 1
@@ -97,6 +152,7 @@ export type StationReadings = {
 
 export type Derived = {
   overview: Overview
+  // By the key `station/year`.
   readings: Map<string, StationReadings>
 }
 
@@ -400,10 +456,20 @@ export const stationHealth = (rows: HealthRow[]): StationHealth => {
   }
 }
 
+export const readingsKey = (station: string, year: number) =>
+  `${station}/${year}`
+
+const withoutLimit = (verdict: Verdict): YearVerdict => {
+  if (verdict.kind === 'none') return { kind: 'none' }
+  const { limit: _limit, ...rest } = verdict
+  return rest
+}
+
 export const derive = (data: LoadedData): Derived => {
   const hours = gridHours(data.startMs, data.endMs)
   const start = msStamp(data.startMs)
   const end = msStamp(data.endMs)
+  const years = yearsOf(data.startMs, data.endMs)
 
   const byStation = new Map<string, RawSeries[]>()
   for (const s of data.series) {
@@ -422,14 +488,15 @@ export const derive = (data: LoadedData): Derived => {
           pollutantRank(a.pollutant) - pollutantRank(b.pollutant) ||
           (a.pollutant < b.pollutant ? -1 : 1)
       )
-    const summaries: SeriesSummary[] = []
-    const reads: SeriesReadings[] = []
-    const healthRows: HealthRow[] = []
+    const series: SeriesOverview[] = []
+    const yearReads = new Map<number, SeriesReadings[]>(years.map(y => [y, []]))
+    const yearRows = new Map<number, HealthRow[]>(years.map(y => [y, []]))
     for (const raw of raws) {
       const values = toValues(raw.readings, data.startMs, hours)
-      const gaps = findGaps(values, data.startMs)
-      const reported = raw.readings.size
-      const d = judgeSeries(
+      // The limit judges each year, and a daily value never crosses a year, so
+      // the daily values come from the whole grid. The 8-hour average of the
+      // first hours of a year then sees the last hours of the year before.
+      const whole = judgeSeries(
         raw.pollutant,
         raw.unit,
         values,
@@ -438,49 +505,97 @@ export const derive = (data: LoadedData): Derived => {
         data.minCompleteHours
       )
       const label = pollutantLabel(raw.pollutant)
-      summaries.push({
+      let first = Infinity
+      let last = -Infinity
+      for (const ms of raw.readings.keys()) {
+        if (ms < first) first = ms
+        if (ms > last) last = ms
+      }
+      const summaries: YearSummary[] = []
+      for (const year of years) {
+        const range = yearStamps(year)
+        const from = (range.first - data.startMs) / HOUR_MS
+        const slice = values.slice(from, from + yearHours(year))
+        const gaps = findGaps(slice, range.first)
+        const reported = slice.filter(v => v !== null).length
+        let verdict: Verdict = whole.verdict
+        if (whole.limit !== null && whole.verdict.kind === 'hourly') {
+          verdict = hourlyVerdict(slice, range.first, whole.limit)
+        } else if (whole.limit !== null && whole.verdict.kind === 'daily') {
+          const days = (whole.daily ?? []).filter(d =>
+            d.day.startsWith(`${year}-`)
+          )
+          verdict = dailyVerdict(days, whole.limit, whole.verdict.statistic)
+        }
+        summaries.push({
+          year,
+          reported,
+          gapCount: gaps.length,
+          longestOutage: longestGap(gaps),
+          verdict: withoutLimit(verdict),
+        })
+        yearRows.get(year)!.push({
+          pollutant: raw.pollutant,
+          expected: slice.length,
+          reported,
+          gaps,
+        })
+        if (reported === 0) continue
+        const r: SeriesReadings = {
+          pollutant: raw.pollutant,
+          label,
+          unit: raw.unit,
+          limit: whole.limit,
+          values: slice,
+          gaps,
+        }
+        if (whole.daily !== undefined) {
+          r.daily = whole.daily.filter(d => d.day.startsWith(`${year}-`))
+        }
+        yearReads.get(year)!.push(r)
+      }
+      series.push({
         pollutant: raw.pollutant,
         label,
         unit: raw.unit,
         datasetId: raw.datasetId,
-        expected: hours,
-        reported,
-        missing: hours - reported,
-        reportedShare: reported / hours,
-        gapCount: gaps.length,
-        longestOutage: longestGap(gaps),
-        verdict: d.verdict,
-      })
-      const r: SeriesReadings = {
-        pollutant: raw.pollutant,
-        label,
-        unit: raw.unit,
-        limit: d.limit,
-        values,
-        gaps,
-      }
-      if (d.daily !== undefined) r.daily = d.daily
-      reads.push(r)
-      healthRows.push({
-        pollutant: raw.pollutant,
-        expected: hours,
-        reported,
-        gaps,
+        limit: whole.limit,
+        reason: whole.verdict.kind === 'none' ? whole.verdict.reason : null,
+        first: raw.readings.size === 0 ? null : msStamp(first),
+        last: raw.readings.size === 0 ? null : msStamp(last),
+        years: summaries,
       })
     }
     stations.push({
       station,
-      health: stationHealth(healthRows),
-      series: summaries,
+      health: years.map(year => {
+        // A series with no reading in the year is not a failure of the station
+        // in that year, so the health leaves it out. A station with no reading
+        // at all keeps every series, and its health is 0.
+        const rows = yearRows.get(year)!
+        const active = rows.filter(r => r.reported > 0)
+        const h = stationHealth(active.length > 0 ? active : rows)
+        return {
+          year,
+          expected: h.expected,
+          reported: h.reported,
+          longestOutage: h.longestOutage,
+        }
+      }),
+      series,
     })
-    readings.set(station, {
-      station,
-      start,
-      end,
-      stepHours: 1,
-      hours,
-      series: reads,
-    })
+    for (const year of years) {
+      const range = yearStamps(year)
+      readings.set(readingsKey(station, year), {
+        station,
+        year,
+        start: msStamp(range.first),
+        end: msStamp(range.last),
+        stepHours: 1,
+        hours: yearHours(year),
+        series: yearReads.get(year)!,
+      })
+    }
   }
 
   const overview: Overview = {
@@ -491,8 +606,10 @@ export const derive = (data: LoadedData): Derived => {
       licence: data.licence,
       fetchedFirst: data.fetchedFirst,
       fetchedLast: data.fetchedLast,
+      corrections: data.corrections,
     },
     window: { start, end, hours, timeNote: TIME_NOTE },
+    years,
     stations,
   }
   return { overview, readings }

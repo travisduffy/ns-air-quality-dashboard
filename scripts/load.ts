@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { chosenLimits } from './limit-choice.ts'
-import { msStamp, stampMs } from './time.ts'
+import { msStamp, stampMs, yearOf } from './time.ts'
 
 export type Limit = {
   value: number
@@ -37,16 +37,60 @@ export type LoadedData = {
   series: RawSeries[]
   limits: Map<string, ChosenLimit>
   minCompleteHours: number
+  // One sentence for each correction that the loader made to the source rows.
+  corrections: string[]
 }
 
 type FileEntry = {
   file: string
   datasetId: string | null
+  name?: string | null
   url: string
   fetchedAt: string
   rows: number | null
   bytes: number
   sha256: string
+}
+
+// A station name that the source misspells in one dataset. Each entry is read
+// as the station on the right. A change here is a decision about the data, and
+// the page lists it under About this data.
+export const STATION_ALIASES: Record<string, string> = {
+  Alyesford: 'Aylesford',
+}
+
+// The pollutants that the name of a dataset lists in its parentheses, such as
+// "(NOx, NO2, NO)", in upper case. Null when the name lists none.
+export const datasetPollutants = (name: string | null | undefined) => {
+  const found = /\(([^)]*)\)/.exec(name ?? '')
+  if (found === null) return null
+  return new Set(found[1]!.split(',').map(p => p.trim().toUpperCase()))
+}
+
+type Correction = {
+  kind: 'alias' | 'pollutant' | 'seconds' | 'conflict'
+  dataset: string
+  from: string
+  to: string
+  rows: number
+  first: number
+  last: number
+}
+
+const correctionText = (c: Correction) => {
+  const a = yearOf(c.first)
+  const b = yearOf(c.last)
+  const when = a === b ? `in ${a}` : `from ${a} to ${b}`
+  const hours = `${c.rows.toLocaleString('en-CA')} ${c.rows === 1 ? 'hour' : 'hours'}`
+  if (c.kind === 'conflict') {
+    return `The dataset "${c.dataset}" lists two different values for the same hour in ${hours} of ${c.from} ${when}. No value is chosen, and those hours show as missing.`
+  }
+  if (c.kind === 'seconds') {
+    return `The dataset "${c.dataset}" lists ${hours} ${when} with seconds after the hour in the stamp. Each is read as the hour, and no other row holds that hour.`
+  }
+  return c.kind === 'alias'
+    ? `The dataset "${c.dataset}" lists ${hours} ${when} under the station name "${c.from}". They are read as ${c.to}.`
+    : `The dataset "${c.dataset}" lists ${hours} ${when} under the pollutant ${c.from}, which the dataset does not hold. These rows are left out, and the hours show as missing.`
 }
 
 // The two spellings of the PM2.5 unit name one unit. Only the display label is
@@ -56,11 +100,13 @@ export const normalizeUnit = (unit: string) => unit.replace(/[µμ]/g, 'u')
 export const parseStamp = (stamp: unknown, where: string) => {
   if (
     typeof stamp !== 'string' ||
-    !/^\d{4}-\d{2}-\d{2}T\d{2}:00:00(\.000)?$/.test(stamp)
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:00:\d{2}(\.000)?$/.test(stamp)
   ) {
     throw new Error(`${where}: bad date_time ${JSON.stringify(stamp)}`)
   }
-  const ms = stampMs(stamp.slice(0, 19))
+  // A few seconds after the hour read as the hour. The loader lists each such
+  // row as a correction.
+  const ms = stampMs(stamp.slice(0, 14) + '00:00')
   if (Number.isNaN(ms)) throw new Error(`${where}: bad date_time ${stamp}`)
   return ms
 }
@@ -143,6 +189,22 @@ export const loadData = (root: string): LoadedData => {
   // The raw text of each row by dataset, series, and hour, to tell an
   // identical repeat from one that differs.
   const seen = new Map<string, string>()
+  const conflicted = new Set<string>()
+  const corrections = new Map<string, Correction>()
+  const correct = (
+    c: Omit<Correction, 'rows' | 'first' | 'last'>,
+    ms: number
+  ) => {
+    const key = `${c.kind}\u0000${c.dataset}\u0000${c.from}`
+    const found = corrections.get(key)
+    if (found === undefined) {
+      corrections.set(key, { ...c, rows: 1, first: ms, last: ms })
+    } else {
+      found.rows++
+      found.first = Math.min(found.first, ms)
+      found.last = Math.max(found.last, ms)
+    }
+  }
 
   for (const f of record.files) {
     if (f.datasetId === null) continue
@@ -201,9 +263,22 @@ export const loadData = (root: string): LoadedData => {
           `${where}: row at ${row.date_time} is before the window start`
         )
       }
-      const station = asString(row.station, `${where} station`)
+      const given = asString(row.station, `${where} station`)
+      const station = STATION_ALIASES[given] ?? given
       const pollutant = asString(row.pollutant, `${where} pollutant`)
       const unit = normalizeUnit(asString(row.unit, `${where} unit`))
+      const dataset = f.name ?? id
+      if (!/:00:00(\.000)?$/.test(String(row.date_time))) {
+        correct({ kind: 'seconds', dataset, from: 'seconds', to: '' }, ms)
+      }
+      if (station !== given) {
+        correct({ kind: 'alias', dataset, from: given, to: station }, ms)
+      }
+      const listed = datasetPollutants(f.name)
+      if (listed !== null && !listed.has(pollutant.toUpperCase())) {
+        correct({ kind: 'pollutant', dataset, from: pollutant, to: '' }, ms)
+        continue
+      }
       if (ms > endMs) endMs = ms
 
       const key = `${station}\u0000${pollutant}`
@@ -227,9 +302,19 @@ export const loadData = (root: string): LoadedData => {
       const seenKey = `${id}\u0000${key}\u0000${ms}`
       const before = seen.get(seenKey)
       if (before !== undefined) {
-        if (before !== text) {
-          throw new Error(
-            `dataset ${id}: repeated rows differ at ${msStamp(ms)} (${station} ${pollutant})`
+        // Two different values for one hour: neither is the true one, so the
+        // hour is missing.
+        if (before !== text && !conflicted.has(seenKey)) {
+          conflicted.add(seenKey)
+          s.readings.delete(ms)
+          correct(
+            {
+              kind: 'conflict',
+              dataset,
+              from: `${station} ${pollutant}`,
+              to: '',
+            },
+            ms
           )
         }
         continue
@@ -269,5 +354,8 @@ export const loadData = (root: string): LoadedData => {
     series,
     limits,
     minCompleteHours,
+    corrections: [...corrections.values()]
+      .sort((x, y) => (x.dataset + x.from < y.dataset + y.from ? -1 : 1))
+      .map(correctionText),
   }
 }

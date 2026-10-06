@@ -8,11 +8,12 @@ import {
   findGaps,
   hourlyVerdict,
   longestGap,
+  readingsKey,
   stationHealth,
-  type Overview,
-  type SeriesSummary,
 } from '../scripts/derive.ts'
 import { loadData, type Limit } from '../scripts/load.ts'
+import { yearHours } from '../scripts/time.ts'
+import { getYearStations } from '../src/years.ts'
 
 const ROOT = new URL('..', import.meta.url).pathname
 const START = Date.UTC(2025, 0, 1)
@@ -177,38 +178,43 @@ test('station health sums the series and names the pollutant of the longest outa
 })
 
 // The expected values below come from a second route: python3 straight from
-// the raw pages, written apart from the loader.
+// the raw pages, written apart from the loader, with the same four corrections
+// that the loader lists.
 const derived = derive(loadData(ROOT))
 
-const find = (station: string, pollutant: string): SeriesSummary => {
-  const s = derived.overview.stations.find(x => x.station === station)
-  return s!.series.find(x => x.pollutant === pollutant)!
-}
+const find = (station: string, pollutant: string, year = 2025) =>
+  getYearStations(derived.overview, year)
+    .find(x => x.station === station)!
+    .series.find(x => x.pollutant === pollutant)!
 
 const daily = (station: string, pollutant: string, day: string) =>
   derived.readings
-    .get(station)!
+    .get(readingsKey(station, Number(day.slice(0, 4))))!
     .series.find(x => x.pollutant === pollutant)!
     .daily!.find(d => d.day === day)!
 
-test('the raw files have the grid of the data', () => {
+test('the raw files have the grid of ten years', () => {
   assert.partialDeepStrictEqual(derived.overview.window, {
-    start: '2025-01-01T00:00:00',
+    start: '2016-01-01T01:00:00',
     end: '2026-01-01T00:00:00',
-    hours: 8761,
+    hours: 87672,
   })
+  assert.deepEqual(
+    derived.overview.years,
+    [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+  )
+  const sum = derived.overview.years.reduce((a, y) => a + yearHours(y), 0)
+  assert.equal(sum, 87672)
+  assert.equal(yearHours(2016), 8784)
+  assert.equal(yearHours(2017), 8760)
 })
 
-test('Sydney CO is the series with the most missing hours', () => {
-  const most = derived.overview.stations
-    .flatMap(s => s.series)
-    .reduce((a, b) => (b.missing > a.missing ? b : a))
-  assert.equal(most.pollutant, 'CO')
+test('Sydney CO 2025 is the Sydney series with the longest outage', () => {
   const s = find('Sydney', 'CO')
   assert.partialDeepStrictEqual(s, {
-    expected: 8761,
+    expected: 8760,
     reported: 7832,
-    missing: 929,
+    missing: 928,
     gapCount: 12,
   })
   assert.deepEqual(s.longestOutage, {
@@ -225,17 +231,17 @@ test('Sydney CO is the series with the most missing hours', () => {
   })
 })
 
-test('Sydney PM2.5 is counted from the raw pages', () => {
+test('Sydney PM2.5 2025 is counted from the raw pages', () => {
   const s = find('Sydney', 'PM2.5')
   assert.partialDeepStrictEqual(s, {
-    expected: 8761,
+    expected: 8760,
     reported: 8362,
-    missing: 399,
+    missing: 398,
     gapCount: 11,
   })
   assert.deepEqual(s.longestOutage, {
-    hours: 329,
-    start: '2025-01-01T00:00:00',
+    hours: 328,
+    start: '2025-01-01T01:00:00',
     end: '2025-01-14T16:00:00',
   })
   assert.equal(s.unit, 'ug/m3')
@@ -256,12 +262,12 @@ test('Aylesford PM2.5 has a day over the limit', () => {
   near(d.value, 35.141666666666666)
 })
 
-test('Sydney O3 has a daily maximum 8-hour average', () => {
+test('Sydney O3 2025 has a daily maximum 8-hour average', () => {
   const s = find('Sydney', 'O3')
   assert.partialDeepStrictEqual(s, {
-    expected: 8761,
+    expected: 8760,
     reported: 8351,
-    missing: 410,
+    missing: 409,
     gapCount: 15,
   })
   assert.partialDeepStrictEqual(s.verdict, {
@@ -285,22 +291,25 @@ test('Kentville O3 has a day over the limit', () => {
   near(d.value, 64.75)
 })
 
-test('repeated rows count once: Aylesford O3 and Pictou TRS', () => {
+test('repeated rows count once: Aylesford O3 and Pictou TRS in 2025', () => {
   assert.partialDeepStrictEqual(find('Aylesford', 'O3'), {
-    reported: 8671,
+    reported: 8670,
     missing: 90,
   })
   assert.partialDeepStrictEqual(find('Pictou', 'TRS'), {
-    reported: 8492,
+    reported: 8491,
     missing: 269,
   })
   assert.equal(find('Pictou', 'TRS').verdict.kind, 'none')
 })
 
-test('the health of Sydney sums from its series', () => {
-  const o: Overview = derived.overview
-  const sydney = o.stations.find(s => s.station === 'Sydney')!
-  assert.equal(sydney.health.expected, sydney.series.length * 8761)
+test('the health of Sydney in 2025 sums from its series', () => {
+  const sydney = getYearStations(derived.overview, 2025).find(
+    s => s.station === 'Sydney'
+  )!
+  assert.equal(sydney.health.expected, sydney.series.length * 8760)
+  assert.equal(sydney.health.expected, 61320)
+  assert.equal(sydney.health.reported, 57767)
   assert.equal(
     sydney.health.reported,
     sydney.series.reduce((a, s) => a + s.reported, 0)
@@ -309,4 +318,102 @@ test('the health of Sydney sums from its series', () => {
     hours: 517,
     pollutant: 'CO',
   })
+})
+
+test('the health of a station leaves out a series with no reading in the year', () => {
+  // Aylesford NO, NO2, and NOX stopped in 2017.
+  const stations = getYearStations(derived.overview, 2025)
+  const aylesford = stations.find(s => s.station === 'Aylesford')!
+  assert.equal(aylesford.series.length, 5)
+  assert.equal(aylesford.health.expected, 2 * 8760)
+  assert.equal(
+    aylesford.health.reported,
+    find('Aylesford', 'O3').reported + find('Aylesford', 'PM2.5').reported
+  )
+  // A station with no reading at all keeps every series, and its health is 0.
+  const halifax = stations.find(s => s.station === 'Halifax')!
+  assert.equal(halifax.health.expected, 7 * 8760)
+  assert.equal(halifax.health.reported, 0)
+})
+
+test('earlier years of Sydney CO come from the same raw pages', () => {
+  assert.equal(find('Sydney', 'CO', 2016).expected, 8784)
+  assert.equal(find('Sydney', 'CO', 2016).reported, 8573)
+  assert.equal(find('Sydney', 'CO', 2019).reported, 8209)
+  assert.deepEqual(find('Sydney', 'CO', 2019).longestOutage, {
+    hours: 317,
+    start: '2019-07-05T17:00:00',
+    end: '2019-07-18T21:00:00',
+  })
+  // The stamps 2016-01-02T00:00:59 and the like read as the hour.
+  const hours = derived.readings
+    .get(readingsKey('Sydney', 2016))!
+    .series.find(x => x.pollutant === 'CO')!.values
+  assert.equal(hours.length, 8784)
+  assert.equal(hours[23], 0)
+})
+
+test('a series that starts later is missing before it starts, never filled', () => {
+  const before = find('Halifax Johnston', 'CO', 2016)
+  assert.partialDeepStrictEqual(before, {
+    expected: 8784,
+    reported: 0,
+    missing: 8784,
+    gapCount: 1,
+  })
+  assert.equal(before.points[0]!.ratio, null)
+  assert.equal(before.points[0]!.reported, 0)
+  assert.equal(find('Halifax Johnston', 'CO', 2018).reported, 8351)
+  assert.equal(find('Halifax', 'CO', 2017).reported, 8664)
+  assert.equal(find('Halifax', 'CO', 2018).reported, 0)
+  const file = derived.readings.get(readingsKey('Halifax Johnston', 2016))!
+  assert.deepEqual(file.series, [])
+})
+
+test('the misspelled station name of Aylesford O3 in 2017 is read as Aylesford', () => {
+  assert.equal(
+    derived.overview.stations.some(s => s.station === 'Alyesford'),
+    false
+  )
+  assert.equal(find('Aylesford', 'O3', 2017).reported, 8678)
+})
+
+test('the rows of another pollutant in the Lake Major SO2 dataset are left out', () => {
+  // 2023 holds one hour of sulphur dioxide. The 8,760 rows that the dataset
+  // labels O3 do not reach the ozone of Lake Major, which has its own dataset.
+  assert.equal(find('Lake Major', 'SO2', 2023).reported, 1)
+  assert.equal(find('Lake Major', 'O3', 2023).reported, 8622)
+})
+
+test('two different values for one hour leave that hour missing', () => {
+  // Lake Major NO has two values at 2018-12-31T00:00, 1.6 and 0.2.
+  const r = derived.readings
+    .get(readingsKey('Lake Major', 2018))!
+    .series.find(x => x.pollutant === 'NO')!
+  assert.equal(
+    r.values[(Date.UTC(2018, 11, 31) - Date.UTC(2018, 0, 1)) / 36e5 - 1],
+    null
+  )
+})
+
+test('the overview lists each correction of the source rows', () => {
+  const text = derived.overview.source.corrections.join('\n')
+  assert.equal(derived.overview.source.corrections.length, 5)
+  assert.match(text, /station name "Alyesford"/)
+  assert.match(text, /under the pollutant O3/)
+  assert.match(text, /seconds after the hour/)
+  assert.match(text, /two different values/)
+})
+
+test('every year of every series has a summary, and the limit sits at the series', () => {
+  for (const station of derived.overview.stations) {
+    assert.equal(station.health.length, 10)
+    for (const series of station.series) {
+      assert.equal(series.years.length, 10)
+      for (const year of series.years) {
+        assert.equal('limit' in year.verdict, false)
+      }
+      assert.equal(series.limit === null, series.reason !== null)
+    }
+  }
 })

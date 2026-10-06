@@ -47,3 +47,26 @@ export const monthsOf = (firstMs: number, lastMs: number) => {
   }
   return out
 }
+
+// The first and the last stamp of a calendar year: January 1 at 01:00 to
+// January 1 of the next year at 00:00.
+export const yearStamps = (year: number): StampRange => ({
+  first: Date.UTC(year, 0, 1) + HOUR_MS,
+  last: Date.UTC(year + 1, 0, 1),
+})
+
+// The number of hourly stamps of a year: 8760, or 8784 in a leap year.
+export const yearHours = (year: number) => {
+  const { first, last } = yearStamps(year)
+  return (last - first) / HOUR_MS + 1
+}
+
+// The calendar year that a stamp closes an hour of.
+export const yearOf = (ms: number) => Number(dayOf(ms).slice(0, 4))
+
+// The years from the year of the stamp firstMs to the year of the stamp lastMs.
+export const yearsOf = (firstMs: number, lastMs: number) => {
+  const out: number[] = []
+  for (let y = yearOf(firstMs); y <= yearOf(lastMs); y++) out.push(y)
+  return out
+}

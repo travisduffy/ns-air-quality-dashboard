@@ -12,8 +12,12 @@ const getJson = async <T>(path: string, signal?: AbortSignal) => {
 
 export const getOverview = () => getJson<Overview>('overview.json')
 
-export const getReadings = (station: string, signal?: AbortSignal) =>
+export const getReadings = (
+  station: string,
+  year: number,
+  signal?: AbortSignal
+) =>
   getJson<StationReadings>(
-    `readings/${encodeURIComponent(station)}.json`,
+    `readings/${encodeURIComponent(station)}/${year}.json`,
     signal
   )

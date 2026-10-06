@@ -32,7 +32,7 @@ test('a county that holds a station takes the color of its verdict', () => {
 })
 
 test('a county takes the worst verdict', () => {
-  assert.equal(getWorstVerdict([]), 'none')
+  assert.equal(getWorstVerdict([]), 'nodata')
   assert.equal(getWorstVerdict(['none', 'within']), 'within')
   assert.equal(getWorstVerdict(['within', 'over', 'none']), 'over')
 })
@@ -62,7 +62,7 @@ test('a county with no station is neutral, and land outside is muted', () => {
     getCountyColor('Charlotte, NB', undefined),
     VERDICT_COLOR.outside
   )
-  assert.equal(new Set(Object.values(VERDICT_COLOR)).size, 5)
+  assert.equal(new Set(Object.values(VERDICT_COLOR)).size, 6)
 })
 
 test('one series is over, within, or has no limit', () => {
@@ -71,16 +71,38 @@ test('one series is over, within, or has no limit', () => {
   assert.equal(getSeriesVerdict(hourly(2)), 'over')
 })
 
+test('a series with no reading in the year has no verdict', () => {
+  const empty = { reported: 0, verdict: { kind: 'hourly', overHours: 0 } }
+  assert.equal(getSeriesVerdict(empty as unknown as SeriesSummary), 'nodata')
+  assert.equal(getWorstVerdict(['nodata', 'none']), 'none')
+  assert.equal(getWorstVerdict(['nodata', 'within']), 'within')
+})
+
+test('a county opens a station that has readings, not one with none', () => {
+  const counties = getCountyVerdicts([
+    { station: 'Halifax', verdict: 'nodata' },
+    { station: 'Halifax Johnston', verdict: 'within' },
+  ])
+  assert.deepEqual(counties.get('Halifax, NS'), {
+    verdict: 'within',
+    first: 'Halifax Johnston',
+  })
+})
+
 test('a station takes the worst verdict of its series', () => {
   const station = (series: SeriesSummary[]) =>
     ({ station: 'Pictou', series }) as Station
-  assert.equal(getStationVerdict(station([])), 'none')
+  assert.equal(getStationVerdict(station([])), 'nodata')
   assert.equal(getStationVerdict(station([noLimit, hourly(0)])), 'within')
   assert.equal(getStationVerdict(station([hourly(0), hourly(1)])), 'over')
 })
 
 test('each verdict of a series has a word, a mark, and a color', () => {
-  const verdicts = [noLimit, hourly(0), hourly(2)].map(getSeriesVerdict)
+  const empty = {
+    reported: 0,
+    verdict: { kind: 'none' },
+  } as unknown as SeriesSummary
+  const verdicts = [noLimit, hourly(0), hourly(2), empty].map(getSeriesVerdict)
   for (const verdict of verdicts) {
     assert.ok(VERDICT_WORD[verdict], verdict)
     assert.ok(VERDICT_MARK[verdict], verdict)

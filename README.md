@@ -1,10 +1,10 @@
 # Nova Scotia Air Quality Dashboard
 
-A dashboard of Nova Scotia broken down by each county by its air quality. It compares the 2025 hourly readings of the provincial monitoring stations with official air quality limits.
+A dashboard of Nova Scotia broken down by each county by its air quality. It compares ten years of hourly readings, 2016 - 2025, from the provincial monitoring stations with official air quality limits.
 
 ## Why
 
-Nova Scotia publishes a lot of open data, and I wanted to build something with it. The air quality data stood out since it's real-time - stations across NS measure the air every hour and anyone can download the readings. Air quality affects everyone who breathes (that's pretty much everyone!), so this data deserves a clear picture.
+Nova Scotia publishes a lot of open data, and I wanted to build something with it. The air quality data stood out - stations across NS measure the air every hour, and the province publishes the checked readings each year for anyone to download. Air quality affects everyone who breathes (that's pretty much everyone!), so this data deserves a clear picture.
 
 ## How
 

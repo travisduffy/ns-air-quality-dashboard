@@ -11,7 +11,7 @@ const main = () => {
   const { start, end, hours } = derived.overview.window
   console.log(
     'data:',
-    `${paths.length} files, ${start} to ${end}, ${hours} hours`
+    `${paths.length} files, ${start} to ${end}, ${hours} hours, ${derived.overview.years.length} years`
   )
 }
 

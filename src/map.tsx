@@ -1,7 +1,7 @@
 import type { Overview } from '../scripts/derive.ts'
 import {
   STATION_COUNTY,
-  VERDICT_MARK,
+  VERDICT_COLOR,
   VERDICT_WORD,
   getCountyColor,
   getCountyVerdicts,
@@ -11,21 +11,19 @@ import {
 import { MapEngine } from '@travisduffy/map-engine'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 
-type Marker = {
-  station: string
-  county: string
-  verdict: Verdict
-  offset: number
-}
+type County = { county: string; verdict: Verdict; stations: string[] }
+type Chooser = { county: string; x: number; y: number }
 type Box = [number, number, number, number]
 
 const MAP_URL = `${import.meta.env.BASE_URL}map.png`
 const SECTORS_URL = `${import.meta.env.BASE_URL}sectors.json`
 const PADDING_PX = 16
-const LABEL_GAP_PX = 3
-const LABEL_GAP_STYLE = { '--label-gap': `${LABEL_GAP_PX}px` } as CSSProperties
 const FIT_OPTIONS = { padding: PADDING_PX, keepOnResize: true }
-const LABEL_SIDES = ['below', 'above', 'right', 'left'] as const
+const CHOOSER_MARGIN_PX = 8
+
+// The sector name is "Kings, NS", and the people say "Kings County".
+const getCountyLabel = (county: string) =>
+  `${county.replace(/, NS$/, '')} County`
 
 const getSectorName = (engine: MapEngine, key: string) => {
   const sector = engine.getSector(key)
@@ -58,7 +56,7 @@ type MapViewProps = {
   station: string | null
   onPick: (station: string) => void
   getVerdict: (station: string) => Verdict
-  hotStation: string | undefined
+  onHover: (stations: string[]) => void
 }
 
 export const MapView = ({
@@ -66,13 +64,20 @@ export const MapView = ({
   station,
   onPick,
   getVerdict,
-  hotStation,
+  onHover,
 }: MapViewProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const markerRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
+  const frameRef = useRef<HTMLDivElement>(null)
+  const tipRef = useRef<HTMLDivElement>(null)
+  const chooserRef = useRef<HTMLDivElement>(null)
+  const opener = useRef<HTMLElement | null>(null)
+  const pointer = useRef({ x: 0, y: 0 })
   const [engine, setEngine] = useState<MapEngine | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const anchors = useRef<Map<string, [number, number]>>(new Map())
+  // True once the palette is on the canvas, so the raw bitmap never shows.
+  const [styled, setStyled] = useState(false)
+  const [hover, setHover] = useState<string | null>(null)
+  const [chooser, setChooser] = useState<Chooser | null>(null)
 
   const stations = useMemo(
     () =>
@@ -83,39 +88,52 @@ export const MapView = ({
     [overview, getVerdict]
   )
   const counties = useMemo(() => getCountyVerdicts(stations), [stations])
-  const markers = useMemo<Marker[]>(() => {
-    const perCounty = new Map<string, string[]>()
-    for (const s of stations) {
-      const county = STATION_COUNTY[s.station]
-      if (county !== undefined) {
-        perCounty.set(county, [...(perCounty.get(county) ?? []), s.station])
-      }
+  const list = useMemo(() => {
+    const out: County[] = []
+    for (const [county, { verdict }] of counties) {
+      out.push({
+        county,
+        verdict,
+        stations: stations
+          .filter(s => STATION_COUNTY[s.station] === county)
+          .map(s => s.station),
+      })
     }
-    return stations.flatMap(s => {
-      const county = STATION_COUNTY[s.station]
-      if (county === undefined) {
-        return []
-      }
-      const group = perCounty.get(county) ?? []
-      return [
-        {
-          station: s.station,
-          county,
-          verdict: s.verdict,
-          offset: group.indexOf(s.station) - (group.length - 1) / 2,
-        },
-      ]
-    })
-  }, [stations])
+    return out
+  }, [stations, counties])
+  const byCounty = useMemo(
+    () => new Map(list.map(item => [item.county, item])),
+    [list]
+  )
 
   const onPickRef = useRef(onPick)
-  const countiesRef = useRef(counties)
+  const byCountyRef = useRef(byCounty)
 
   // The engine callbacks read these refs, so they see the latest props. The
   // effect runs before the others, so no effect reads a stale value.
   useEffect(() => {
     onPickRef.current = onPick
-    countiesRef.current = counties
+    byCountyRef.current = byCounty
+  })
+
+  const openCounty = (county: string, x: number, y: number) => {
+    const item = byCounty.get(county)
+    if (item === undefined) {
+      setChooser(null)
+      return
+    }
+    setHover(null)
+    if (item.stations.length === 1) {
+      setChooser(null)
+      onPick(item.stations[0])
+      return
+    }
+    setChooser({ county, x, y })
+  }
+  const openCountyRef = useRef(openCounty)
+
+  useEffect(() => {
+    openCountyRef.current = openCounty
   })
 
   useEffect(() => {
@@ -134,103 +152,27 @@ export const MapView = ({
         if (!alive) {
           return
         }
-        await mapEngine.computeAnchors()
-        if (!alive) {
-          return
-        }
-        // The numeric id of a sector is its place in the key list.
-        for (const [id, key] of mapEngine.getSectorKeys().entries()) {
-          anchors.current.set(
-            getSectorName(mapEngine, key),
-            mapEngine.getAnchor(id)
-          )
-        }
+        // A county with no station is no target: it gets no pointer cursor,
+        // no tip, and no click.
         mapEngine.on(
           'sectorClick',
           (event: { sectorData: { name: string } }) => {
-            const hit = countiesRef.current.get(event.sectorData.name)
-            if (hit !== undefined) {
-              onPickRef.current(hit.first)
-            }
+            const { x, y } = pointer.current
+            openCountyRef.current(event.sectorData.name, x, y)
           }
         )
-        // A label sits below its marker. When that spot meets a marker, a
-        // label, or the edge of the map, the label moves above, then right,
-        // then left of its own marker.
-        const spreadLabels = () => {
-          const bounds = canvas.getBoundingClientRect()
-          const items = [...markerRefs.current.values()]
-            .filter(button => button.style.visibility === 'visible')
-            .flatMap(button => {
-              const name = button.querySelector<HTMLElement>('.name')
-              const mark = button.querySelector<HTMLElement>('.mark')
-              if (name === null || mark === null || name.offsetWidth === 0) {
-                return []
-              }
-              return [{ name, pin: mark.getBoundingClientRect() }]
-            })
-            .sort((a, b) => a.pin.top - b.pin.top || a.pin.left - b.pin.left)
-          const blocked = items.map(item => item.pin)
-          for (const { name, pin } of items) {
-            const width = name.offsetWidth
-            const height = name.offsetHeight
-            const centerX = pin.left + pin.width / 2
-            const centerY = pin.top + pin.height / 2
-            const spots = {
-              below: [centerX - width / 2, pin.bottom + LABEL_GAP_PX],
-              above: [centerX - width / 2, pin.top - LABEL_GAP_PX - height],
-              right: [pin.right + LABEL_GAP_PX, centerY - height / 2],
-              left: [pin.left - LABEL_GAP_PX - width, centerY - height / 2],
-            }
-            const fits = (candidate: (typeof LABEL_SIDES)[number]) => {
-              const [left, top] = spots[candidate]
-              const taken = blocked.some(
-                other =>
-                  other !== pin &&
-                  other.left < left + width &&
-                  left < other.right &&
-                  other.top < top + height &&
-                  top < other.bottom
-              )
-              return (
-                !taken &&
-                left >= bounds.left &&
-                left + width <= bounds.right &&
-                top >= bounds.top &&
-                top + height <= bounds.bottom
-              )
-            }
-            const side = LABEL_SIDES.find(fits) ?? 'below'
-            const [left, top] = spots[side]
-            if (name.dataset.side !== side) {
-              name.dataset.side = side
-            }
-            blocked.push(new DOMRect(left, top, width, height))
+        mapEngine.on(
+          'sectorHover',
+          (event: { sectorData: { name: string } } | null) => {
+            const name = event?.sectorData.name
+            const live = name !== undefined && byCountyRef.current.has(name)
+            canvas.style.cursor = live ? 'pointer' : ''
+            setHover(live ? name : null)
           }
-        }
-        const place = () => {
-          const rect = canvas.getBoundingClientRect()
-          for (const [name, button] of markerRefs.current) {
-            const anchor = anchors.current.get(STATION_COUNTY[name] ?? '')
-            if (anchor === undefined) {
-              continue
-            }
-            const [sx, sy] = mapEngine.project(anchor[0], anchor[1])
-            const inside =
-              sx >= 0 && sy >= 0 && sx <= rect.width && sy <= rect.height
-            button.style.transform = `translate(${sx}px, ${sy}px)`
-            button.style.visibility = inside ? 'visible' : 'hidden'
-          }
-        }
-        const placeAll = () => {
-          place()
-          spreadLabels()
-        }
-        mapEngine.onFrame(placeAll)
+        )
         const box = getNovaScotiaBox(mapEngine)
         const frame = () => {
           mapEngine.fitBounds(box, FIT_OPTIONS)
-          placeAll()
         }
         // The engine reads the new canvas size in its own animation frame, so
         // a later frame is the first one where project agrees with the canvas.
@@ -259,6 +201,7 @@ export const MapView = ({
       observer?.disconnect()
       // A rerun of the effect, as in StrictMode, needs the state reset.
       setEngine(null)
+      setStyled(false)
       mapEngine.destroy()
     }
   }, [])
@@ -271,73 +214,201 @@ export const MapView = ({
       const name = getSectorName(engine, key)
       engine.setSectorColor(
         key,
-        getCountyColor(name, countiesRef.current.get(name)?.verdict)
+        getCountyColor(name, byCountyRef.current.get(name)?.verdict)
       )
     }
+    // The engine draws in its own animation frame. Show the canvas two frames
+    // after the colors, so the first frame on screen is a styled one.
+    let second = 0
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setStyled(true))
+    })
+    return () => {
+      cancelAnimationFrame(first)
+      cancelAnimationFrame(second)
+    }
   }, [engine, counties])
+
+  // The chooser takes the focus when it opens, and gives it back on close.
+  useEffect(() => {
+    if (chooser !== null) {
+      chooserRef.current?.querySelector('button')?.focus()
+    }
+  }, [chooser])
+
+  const closeChooser = () => {
+    setChooser(null)
+    if (opener.current?.isConnected) {
+      opener.current.focus()
+    }
+  }
+
+  const moveTip = (x: number, y: number) => {
+    pointer.current = { x, y }
+    const tip = tipRef.current
+    if (tip !== null) {
+      tip.style.transform = `translate(${x}px, ${y}px)`
+    }
+  }
+
+  const getChooserStyle = (at: Chooser): CSSProperties => {
+    const frame = frameRef.current?.getBoundingClientRect()
+    const width = frame?.width ?? 0
+    const height = frame?.height ?? 0
+    return {
+      left: Math.max(CHOOSER_MARGIN_PX, Math.min(at.x, width - 200)),
+      top: Math.max(CHOOSER_MARGIN_PX, Math.min(at.y, height - 110)),
+    }
+  }
+
+  const hovered = hover === null ? undefined : byCounty.get(hover)
+  const onHoverRef = useRef(onHover)
+
+  useEffect(() => {
+    onHoverRef.current = onHover
+  })
+
+  // The tiles of the county under the pointer or the focus show as hot.
+  const [focused, setFocused] = useState<string | null>(null)
+  const hotCounty = hover ?? focused
+  useEffect(() => {
+    onHoverRef.current(
+      hotCounty === null ? [] : (byCounty.get(hotCounty)?.stations ?? [])
+    )
+  }, [hotCounty, byCounty])
+  const choosing = chooser === null ? undefined : byCounty.get(chooser.county)
 
   return (
     <section
       className="map-view"
-      aria-label="Map of the stations"
-      data-ready={engine !== null}
+      aria-label="Map of the counties"
+      data-ready={engine !== null && styled}
     >
-      <div className="map-frame" style={LABEL_GAP_STYLE}>
+      <div
+        className="map-frame"
+        ref={frameRef}
+        onPointerMove={event => {
+          const box = event.currentTarget.getBoundingClientRect()
+          moveTip(event.clientX - box.left, event.clientY - box.top)
+        }}
+        onPointerLeave={() => setHover(null)}
+        onKeyDown={event => {
+          if (event.key === 'Escape' && chooser !== null) {
+            event.stopPropagation()
+            closeChooser()
+          }
+        }}
+      >
         <canvas
           ref={canvasRef}
           className="map-canvas"
           role="img"
-          aria-label="Map of the Maritimes, Nova Scotia in view"
+          aria-label="Map of the Maritimes, Nova Scotia in view. The list below the map holds each county with a station."
         />
-        {markers.map(m => {
-          const picked = m.station === station
-          const className = `map-marker ${m.verdict}${picked ? ' picked' : ''}`
-          const verdictWord = VERDICT_WORD[m.verdict].toLowerCase()
-          const label = `${m.station}, ${m.county}: ${verdictWord}`
-          return (
-            <button
-              key={m.station}
-              type="button"
-              ref={element => {
-                if (element === null) {
-                  markerRefs.current.delete(m.station)
-                } else {
-                  markerRefs.current.set(m.station, element)
-                }
-              }}
-              className={className}
-              style={{ '--offset': m.offset } as CSSProperties}
-              data-hot={m.station === hotStation ? '' : undefined}
-              data-testid="map-marker"
-              data-station={m.station}
-              aria-pressed={picked}
-              aria-label={label}
-              onClick={() => onPick(m.station)}
-            >
-              <span className="mark" aria-hidden="true">
-                {VERDICT_MARK[m.verdict]}
-              </span>
-              <span className="name">{m.station}</span>
+        {hovered !== undefined && chooser === null && (
+          <div
+            className="map-tip"
+            ref={tipRef}
+            data-testid="map-tip"
+            style={{
+              transform: `translate(${pointer.current.x}px, ${pointer.current.y}px)`,
+            }}
+          >
+            <strong>{getCountyLabel(hovered.county)}</strong>
+            <span>{hovered.stations.join(', ')}</span>
+          </div>
+        )}
+        {chooser !== null && choosing !== undefined && (
+          <div
+            className="map-chooser"
+            ref={chooserRef}
+            role="group"
+            aria-label={`Stations in ${getCountyLabel(choosing.county)}`}
+            data-testid="map-chooser"
+            style={getChooserStyle(chooser)}
+          >
+            <strong>{getCountyLabel(choosing.county)}</strong>
+            {choosing.stations.map(name => (
+              <button
+                key={name}
+                type="button"
+                data-station={name}
+                onClick={() => {
+                  setChooser(null)
+                  onPick(name)
+                }}
+              >
+                {name}
+              </button>
+            ))}
+            <button type="button" className="close" onClick={closeChooser}>
+              Close
             </button>
-          )
-        })}
+          </div>
+        )}
         {error !== null && (
           <p className="error">Could not load the map: {error}</p>
         )}
       </div>
+      <ul className="county-list" aria-label="Counties with a station">
+        {list.map(item => {
+          const picked = item.stations.includes(station ?? '')
+          const names = item.stations.join(', ')
+          const verdictWord = VERDICT_WORD[item.verdict].toLowerCase()
+          return (
+            <li key={item.county}>
+              <button
+                type="button"
+                className={`county ${item.verdict}${picked ? ' picked' : ''}`}
+                data-testid="map-county"
+                data-county={item.county}
+                aria-pressed={picked}
+                onFocus={() => setFocused(item.county)}
+                onBlur={() => setFocused(null)}
+                aria-label={`${getCountyLabel(item.county)}, ${names}: ${verdictWord}`}
+                onClick={event => {
+                  opener.current = event.currentTarget
+                  const frame = frameRef.current?.getBoundingClientRect()
+                  openCounty(
+                    item.county,
+                    (frame?.width ?? 0) / 2 - 90,
+                    (frame?.height ?? 0) / 2 - 50
+                  )
+                }}
+              >
+                <span
+                  className="swatch"
+                  aria-hidden="true"
+                  style={{ background: VERDICT_COLOR[item.verdict] }}
+                />
+                <span className="county-name">
+                  {getCountyLabel(item.county)}
+                </span>
+                <span className="county-stations">{names}</span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
       <p className="legend">
-        <span className="mk over" aria-hidden="true">
-          ▲
-        </span>{' '}
-        {VERDICT_WORD.over.toLowerCase()}{' '}
-        <span className="mk within" aria-hidden="true">
-          ●
-        </span>{' '}
-        {VERDICT_WORD.within.toLowerCase()}{' '}
-        <span className="mk blank" aria-hidden="true">
-          ○
-        </span>{' '}
-        {VERDICT_WORD.none.toLowerCase()}
+        {(['over', 'within', 'none', 'nodata'] as const).map(verdict => (
+          <span key={verdict} className="key">
+            <span
+              className="swatch"
+              aria-hidden="true"
+              style={{ background: VERDICT_COLOR[verdict] }}
+            />
+            {VERDICT_WORD[verdict].toLowerCase()}
+          </span>
+        ))}
+        <span className="key">
+          <span
+            className="swatch"
+            aria-hidden="true"
+            style={{ background: VERDICT_COLOR.idle }}
+          />
+          no station
+        </span>
       </p>
     </section>
   )

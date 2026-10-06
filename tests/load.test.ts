@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, test } from 'node:test'
 import { loadData } from '../scripts/load.ts'
+import { msStamp } from '../scripts/time.ts'
 
 const ROOT = new URL('..', import.meta.url).pathname
 const made: string[] = []
@@ -34,7 +35,11 @@ const row = (stamp: string, average?: string) => {
 
 // A fixture tree with one dataset: a fetch record, a metadata file, one page
 // of rows, and the real limits file.
-const fixture = (rows: Row[], since = '2025-01-01T00:00:00') => {
+const fixture = (
+  rows: Row[],
+  since = '2025-01-01T00:00:00',
+  name: string | null = null
+) => {
   const dir = mkdtempSync(join(tmpdir(), 'aqm-load-'))
   made.push(dir)
   mkdirSync(join(dir, 'data', 'raw', 'aaaa-bbbb'), { recursive: true })
@@ -56,6 +61,7 @@ const fixture = (rows: Row[], since = '2025-01-01T00:00:00') => {
   const entry = (file: string, b: Buffer, n: number | null) => ({
     file,
     datasetId: 'aaaa-bbbb',
+    name,
     url: 'https://data.example.invalid/resource/aaaa-bbbb.json',
     fetchedAt: '2026-01-01T00:00:00.000Z',
     httpStatus: 200,
@@ -86,22 +92,79 @@ test('identical repeated rows load as one reading', () => {
   assert.deepEqual([...d.series[0]!.readings.values()], [21, 22.5])
 })
 
-test('repeated rows that differ throw, and name the dataset and the hour', () => {
-  const dir = fixture([
-    row('2025-01-01T00:00:00', '21'),
-    row('2025-01-01T00:00:00', '22'),
-  ])
-  assert.throws(() => loadData(dir), /aaaa-bbbb.*2025-01-01T00:00:00/)
+test('repeated rows that differ leave the hour missing, and the loader says so', () => {
+  const d = loadData(
+    fixture([
+      row('2025-01-01T00:00:00', '21'),
+      row('2025-01-01T00:00:00', '22'),
+      row('2025-01-01T01:00:00', '23'),
+    ])
+  )
+  assert.deepEqual([...d.series[0]!.readings.values()], [23])
+  assert.equal(d.corrections.length, 1)
+  assert.match(
+    d.corrections[0]!,
+    /two different values.*in 1 hour of Testville O3/
+  )
 })
 
-test('a repeat with an average in one row and none in the other throws', () => {
-  assert.throws(
-    () =>
-      loadData(
-        fixture([row('2025-01-01T00:00:00', '21'), row('2025-01-01T00:00:00')])
-      ),
-    /aaaa-bbbb/
+test('a repeat with an average in one row and none in the other leaves the hour missing', () => {
+  const d = loadData(
+    fixture([row('2025-01-01T00:00:00', '21'), row('2025-01-01T00:00:00')])
   )
+  assert.equal(d.series[0]!.readings.size, 0)
+  assert.equal(d.corrections.length, 1)
+})
+
+test('a stamp with seconds after the hour is read as the hour, and listed', () => {
+  const r = row('2025-01-01T01:00:00', '3')
+  r.date_time = '2025-01-01T01:00:59.000'
+  const d = loadData(fixture([r, row('2025-01-01T02:00:00', '4')]))
+  assert.deepEqual(
+    [...d.series[0]!.readings.keys()],
+    [Date.UTC(2025, 0, 1, 1), Date.UTC(2025, 0, 1, 2)]
+  )
+  assert.equal(d.corrections.length, 1)
+  assert.match(d.corrections[0]!, /seconds after the hour/)
+})
+
+test('a stamp with minutes still throws', () => {
+  const r = row('2025-01-01T01:00:00', '3')
+  r.date_time = '2025-01-01T01:30:00.000'
+  assert.throws(() => loadData(fixture([r])), /bad date_time/)
+})
+
+test('a misspelled station name is read as its station, and listed', () => {
+  const a = row('2025-01-01T01:00:00', '3')
+  const b = row('2025-01-01T02:00:00', '4')
+  a.station = b.station = 'Alyesford'
+  const d = loadData(fixture([a, b]))
+  assert.deepEqual(
+    d.series.map(s => s.station),
+    ['Aylesford']
+  )
+  assert.match(d.corrections[0]!, /station name "Alyesford".*read as Aylesford/)
+})
+
+test('a row of a pollutant that the dataset name does not list is left out, and listed', () => {
+  const name = 'Test Sulphur Dioxide (SO2) Hourly Data Testville'
+  const so2 = row('2025-01-01T01:00:00', '1')
+  so2.pollutant = 'SO2'
+  so2.unit = 'ppb'
+  const d = loadData(
+    fixture(
+      [so2, row('2025-01-01T02:00:00', '4'), row('2025-01-01T03:00:00', '5')],
+      '2025-01-01T00:00:00',
+      name
+    )
+  )
+  assert.deepEqual(
+    d.series.map(s => s.pollutant),
+    ['SO2']
+  )
+  assert.equal(d.endMs, Date.UTC(2025, 0, 1, 1))
+  assert.match(d.corrections[0]!, /pollutant O3.*left out/)
+  assert.match(d.corrections[0]!, /2 hours/)
 })
 
 test('a row with no average, or an empty average, is a missing hour and still counts as the data end', () => {
@@ -158,5 +221,7 @@ test('the real files load, with the licence, the limits, and the data end from t
   assert.match(d.licence.name, /Open Government Licence/)
   assert.equal(d.limits.get('SO2')!.limit.value, 343.5)
   assert.equal(d.minCompleteHours, 18)
-  assert.equal(d.since, '2025-01-01T00:00:00')
+  assert.equal(d.since, '2016-01-01T01:00:00')
+  assert.equal(msStamp(d.endMs), '2026-01-01T00:00:00')
+  assert.equal(d.corrections.length, 5)
 })
