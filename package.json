@@ -1,0 +1,30 @@
+{
+  "name": "ns-air-quality-dashboard",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "fetch": "node scripts/fetch.ts",
+    "data": "npm run fetch && node scripts/summarize.ts",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc",
+    "test": "npm run test:unit && npm run test:browser",
+    "test:unit": "node --test tests/*.test.ts",
+    "test:browser": "playwright test",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@travisduffy/map-engine": "file:vendor/map-engine",
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "@types/node": "^24.0.0",
+    "@types/three": "^0.160.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "vite": "^8.2.0"
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "ff0000": {
+    "name": "Halifax, NS"
+  },
+  "b300ff": {
+    "name": "Lunenburg, NS"
+  },
+  "00ff44": {
+    "name": "Queens, NS"
+  },
+  "001aff": {
+    "name": "Shelburne, NS"
+  },
+  "ffa600": {
+    "name": "Yarmouth, NS"
+  },
+  "00bfff": {
+    "name": "Digby, NS"
+  },
+  "ddff00": {
+    "name": "Annapolis, NS"
+  },
+  "ff007b": {
+    "name": "Kings, NS"
+  },
+  "00ff99": {
+    "name": "Hants, NS"
+  },
+  "6200ff": {
+    "name": "Colchester, NS"
+  },
+  "fff700": {
+    "name": "Cumberland, NS"
+  },
+  "0099ff": {
+    "name": "Pictou, NS"
+  },
+  "ff00d0": {
+    "name": "Antigonish, NS"
+  },
+  "88ff00": {
+    "name": "Guysborough, NS"
+  },
+  "3700ff": {
+    "name": "Inverness, NS"
+  },
+  "ff7b00": {
+    "name": "Victoria, NS"
+  },
+  "00ff1a": {
+    "name": "Cape Breton, NS"
+  },
+  "00ffea": {
+    "name": "Richmond, NS"
+  },
+  "62ff00": {
+    "name": "Kings, PEI"
+  },
+  "ff5100": {
+    "name": "Queens, PEI"
+  },
+  "00eaff": {
+    "name": "Prince, PEI"
+  },
+  "0044ff": {
+    "name": "Westmorland, NB"
+  },
+  "0dff00": {
+    "name": "Albert, NB"
+  },
+  "8800ff": {
+    "name": "St. John, NB"
+  },
+  "ff0051": {
+    "name": "Charlotte, NB"
+  },
+  "ff00a6": {
+    "name": "Kings, NB"
+  },
+  "ffd000": {
+    "name": "Queens, NB"
+  },
+  "00ffbf": {
+    "name": "Sunbury, NB"
+  },
+  "006eff": {
+    "name": "York, NB"
+  },
+  "00ff6e": {
+    "name": "Carleton, NB"
+  },
+  "ff2a00": {
+    "name": "Victoria, NB"
+  },
+  "37ff00": {
+    "name": "Madawaska, NB"
+  },
+  "0d00ff": {
+    "name": "Restigouche, NB"
+  },
+  "ff00f7": {
+    "name": "Gloucester, NB"
+  },
+  "b3ff00": {
+    "name": "Northumberland, NB"
+  },
+  "dd00ff": {
+    "name": "Kent, NB"
+  }
+}

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌬️</text></svg>"
+    />
+    <title>NS Air Quality Dashboard</title>
+  </head>
+  <body>
+    <header>
+      <h1>NS Air Quality Dashboard</h1>
+      <p>
+        Hourly readings of the Nova Scotia provincial stations in 2025, judged
+        against the official air quality limits.
+      </p>
+      <div id="filters" role="group" aria-label="Pollutant"></div>
+    </header>
+    <main>
+      <section class="map">
+        <canvas id="map"></canvas>
+        <ul id="legend"></ul>
+      </section>
+      <aside id="panel"><p class="hint">Loading the map...</p></aside>
+    </main>
+    <div id="tooltip" hidden></div>
+    <footer>
+      Data:
+      <a href="https://data.novascotia.ca" target="_blank" rel="noreferrer"
+        >Nova Scotia Open Data</a
+      >, provincial ambient hourly data. Map drawn by
+      <a
+        href="https://github.com/travisduffy/map-engine"
+        target="_blank"
+        rel="noreferrer"
+        >map-engine</a
+      >.
+    </footer>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
