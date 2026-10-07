@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "name": "Nova Scotia Open Data",
+    "site": "https://data.novascotia.ca",
+    "licence": "Open Government Licence - Nova Scotia"
+  },
+  "fetchedAt": "2026-10-06T03:15:34.760Z",
+  "datasets": [
+    {
+      "id": "3j2a-f43q",
+      "name": "Fixture hourly dataset",
+      "url": "https://data.novascotia.ca/resource/3j2a-f43q.json",
+      "fetchedAt": "2026-10-06T03:15:34.760Z",
+      "rows": 72,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "id": "zzzz-0000",
+      "name": "Fixture empty dataset",
+      "url": "https://data.novascotia.ca/resource/zzzz-0000.json",
+      "fetchedAt": "2026-10-06T03:15:35.120Z",
+      "rows": 0,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000001"
+    }
+  ],
+  "files": [
+    {
+      "path": "stations.json",
+      "bytes": 812,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "path": "fabric/pm25.json",
+      "bytes": 240,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "path": "fabric/o3.json",
+      "bytes": 230,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "path": "fabric/trs.json",
+      "bytes": 220,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "path": "story.json",
+      "bytes": 2048,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "layer": "pm25",
+  "firstDay": "2016-01-01",
+  "dayCount": 3,
+  "unit": "µg/m³",
+  "limit": 27,
+  "stations": [
+    { "station": "Halifax", "values": [4.2, null, 6.1], "hours": [23, 12, 24] },
+    { "station": "Kentville", "values": [3.8, 5, 29.98], "hours": [24, 24, 24] }
+  ]
+}

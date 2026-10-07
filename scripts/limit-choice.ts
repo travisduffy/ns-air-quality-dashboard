@@ -19,11 +19,3 @@ export const chosenLimits: LimitChoice[] = [
   { pollutant: 'NO2', framework: SCHEDULE_A, averagingHours: 1 },
   { pollutant: 'CO', framework: SCHEDULE_A, averagingHours: 1 },
 ]
-
-export const noLimitReasons: Record<string, string> = {
-  TRS: 'The only official value is 7 ug/m3 over 24 hours. Total reduced sulphur has no single molar mass, so no official ppb value exists.',
-  NO: 'No official limit exists for nitric oxide.',
-  NOX: 'No official limit exists for nitrogen oxides.',
-}
-
-export const unknownLimitReason = 'No limit has been chosen for this pollutant.'

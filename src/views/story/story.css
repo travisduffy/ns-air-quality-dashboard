@@ -1,0 +1,625 @@
+.story {
+  --bar: #8a857b;
+  --over: #e07b00;
+  --focus: #2f6db5;
+  --gap: #e4e2dc;
+  --hatch: repeating-linear-gradient(
+    45deg,
+    var(--gap) 0 3px,
+    var(--muted) 3px 4px
+  );
+
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0;
+  color: var(--ink);
+  background: var(--bg);
+  font: 400 18px/1.55 var(--sans);
+}
+.story :focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.story-status,
+.story .error {
+  padding: 24px;
+}
+
+/* The hero */
+.hero {
+  display: flex;
+  flex-direction: column;
+  padding: 24px 24px 32px;
+}
+.kicker {
+  margin: 0 0 16px;
+  font: 700 14px/1.4 var(--sans);
+  letter-spacing: 0.12em;
+}
+.hero h1 {
+  margin: 0 0 20px;
+  font: 700 40px/1.1 var(--serif);
+}
+.standfirst {
+  margin: 0;
+  font: 400 19px/1.45 var(--serif);
+}
+.cue {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 32px 0 0;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+.cue-ring {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  color: var(--ink);
+  font-size: 20px;
+}
+
+/* The sticky fabric sits above the chapters on a phone, and beside them on a
+   desk. */
+.fabric-column {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 12px 24px 8px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.fabric {
+  margin: 0;
+}
+.fabric-title {
+  margin: 0 0 8px;
+  font: 600 14px/1.3 var(--sans);
+}
+.fabric-stage {
+  position: relative;
+}
+.fabric-canvas {
+  position: absolute;
+  top: 0;
+  display: block;
+  cursor: crosshair;
+  touch-action: manipulation;
+}
+.fabric-label {
+  position: absolute;
+  left: 0;
+  display: flex;
+  align-items: center;
+  font: 700 14px/1 var(--sans);
+  white-space: nowrap;
+}
+.fabric-label.dim {
+  color: var(--muted);
+}
+.fabric-marker,
+.fabric-hover {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ink);
+  pointer-events: none;
+}
+.fabric-hover {
+  width: 1px;
+  background: var(--muted);
+}
+.fabric-tip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 4px;
+  background: var(--bg);
+  font: 600 14px/1.4 var(--sans);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.fabric-selected {
+  margin-left: 8px;
+  font-variant-numeric: tabular-nums;
+}
+/* The phone has no room above the fabric, so the title carries the day. */
+@media (max-width: 899px) {
+  .fabric-marker .fabric-tip {
+    display: none;
+  }
+}
+@media (min-width: 900px) {
+  .fabric-selected {
+    display: none;
+  }
+}
+.fabric-hover .fabric-tip {
+  bottom: auto;
+  top: 100%;
+}
+.fabric-years {
+  position: relative;
+  height: 22px;
+  margin-top: 6px;
+  color: var(--ink-2);
+  font: 500 14px/22px var(--sans);
+}
+.fabric-years span {
+  position: absolute;
+  top: 0;
+}
+.fabric-years span:nth-child(even) {
+  display: none;
+}
+.fabric-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 4px;
+  color: var(--ink-2);
+  font: 500 14px/1.4 var(--sans);
+}
+.legend-scale,
+.legend-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend-ramp {
+  display: inline-block;
+  width: 72px;
+  height: 10px;
+  background: linear-gradient(90deg, #f1efe9, #a39e93, #34312c);
+}
+.legend-ramp.reverse {
+  background: linear-gradient(90deg, #e8e5de, #34312c);
+}
+.legend-over {
+  color: var(--over);
+  -webkit-text-stroke: 1px var(--ink);
+}
+.legend-mark {
+  display: inline-block;
+  width: 2px;
+  height: 14px;
+  background: var(--ink);
+}
+.legend-gap {
+  display: inline-block;
+  width: 16px;
+  height: 10px;
+  background: var(--hatch);
+}
+
+/* The chapters */
+.chapters {
+  padding: 0 24px;
+}
+.chapter {
+  min-height: 85vh;
+  padding: 48px 0;
+  /* A jump to a chapter lands under the sticky fabric. */
+  scroll-margin-top: 340px;
+  border-top: 1px solid var(--line);
+}
+.chapter:first-child {
+  border-top: 0;
+}
+.chapter-number {
+  margin: 0 0 8px;
+  font: 700 15px/1.2 var(--sans);
+}
+.chapter-title {
+  margin: 0 0 12px;
+  font: 700 28px/1.15 var(--serif);
+}
+.chapter-big {
+  margin: 0 0 20px;
+  color: var(--accent);
+  font: 700 56px/1.05 var(--serif);
+}
+.chapter-body {
+  margin: 0 0 16px;
+}
+.chapter-caption {
+  margin: 0 0 12px;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+.bars {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+.bar-row {
+  display: grid;
+  grid-template-columns: 9.5em 1fr 5.5em;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+.bar-row.nil {
+  display: block;
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: var(--hatch);
+}
+.bar-row.nil span {
+  padding: 0 6px;
+  background: var(--bg);
+}
+.bar-track {
+  height: 14px;
+}
+.bar {
+  display: block;
+  height: 100%;
+  background: var(--bar);
+}
+.bar.accent {
+  background: var(--accent);
+}
+.bar-value {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.limit-bars {
+  padding-top: 24px;
+}
+.limit-bars .bar-row {
+  grid-template-columns: 1fr 4.5em;
+  row-gap: 2px;
+  margin-bottom: 6px;
+}
+.limit-bars .bar-label {
+  grid-column: 1 / -1;
+}
+.limit-bars .bar-track {
+  position: relative;
+}
+.limit-bars .bar-track::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  left: calc(var(--limit-share) * 100%);
+  width: 2px;
+  background: var(--ink);
+}
+/* The note sits over the line of the limit, inside the width of a track. */
+.limit-note {
+  position: absolute;
+  top: 0;
+  left: calc((100% - 4.5em - 8px) * var(--limit-share));
+  color: var(--ink-2);
+  line-height: 20px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+.years {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 4px;
+  height: 160px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+.year {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: stretch;
+  text-align: center;
+}
+.year .bar {
+  min-height: 2px;
+  height: auto;
+}
+.year-label {
+  margin-top: 4px;
+  font-size: 14px;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  align-self: center;
+}
+.pair {
+  display: flex;
+  gap: 48px;
+}
+.pair-item {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  font: 700 40px/1.1 var(--serif);
+}
+.pair-item.accent {
+  color: var(--accent);
+}
+.pair-label {
+  margin-top: 4px;
+  color: var(--ink-2);
+  font: 400 14px/1.4 var(--sans);
+}
+
+/* The day card */
+.day-card {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  /* The sheet is tall enough for the whole card of the worst day, so that no
+     row hides below the fold. */
+  max-height: 80vh;
+  overflow: auto;
+  padding: 20px 24px 24px;
+  background: #fff;
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
+}
+.day-card h2 {
+  margin: 0 0 4px;
+  font: 700 22px/1.2 var(--sans);
+}
+.day-card-line {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+.day-card-line:empty {
+  display: none;
+}
+.day-card-rows {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.day-card-rows li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 12px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line);
+  font: 500 16px/1.3 var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+.day-card-rows li.nil {
+  background: var(--hatch);
+}
+.day-card-rows li.nil > span {
+  justify-self: start;
+  padding: 0 6px;
+  background: #fff;
+}
+.day-card-rows li.nil > .day-card-value {
+  justify-self: end;
+}
+.day-card-hours {
+  grid-column: 1 / -1;
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.3;
+}
+.day-card-how {
+  margin: 0 0 16px;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+.day-card-close {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 2px solid var(--ink);
+  background: var(--bg);
+  color: var(--ink);
+  font: 700 16px/1 var(--sans);
+  cursor: pointer;
+}
+
+/* How the data got in */
+.origin {
+  padding: 48px 24px 64px;
+  border-top: 1px solid var(--line);
+}
+.origin h2 {
+  margin: 0 0 16px;
+  font: 700 28px/1.15 var(--serif);
+}
+.origin-steps {
+  margin: 0 0 24px;
+  padding-left: 1.4em;
+}
+.origin-steps li {
+  margin-bottom: 8px;
+}
+.origin-table {
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
+.origin table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.origin caption {
+  margin-bottom: 6px;
+  font-weight: 700;
+  text-align: left;
+}
+.origin th,
+.origin td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.origin td.number {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.origin code {
+  font-size: 14px;
+  word-break: break-all;
+}
+.origin-id {
+  color: var(--ink-2);
+  font-weight: 400;
+}
+.origin-group th {
+  padding-top: 14px;
+  font-weight: 700;
+}
+@media (max-width: 899px) {
+  .origin tr:not(.origin-group) {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    border-bottom: 1px solid var(--line);
+  }
+  .origin thead {
+    display: none;
+  }
+  .origin th,
+  .origin td {
+    border-bottom: 0;
+  }
+  .origin td:last-child {
+    grid-column: 1 / -1;
+    padding-top: 0;
+  }
+}
+.origin-checksums {
+  margin-bottom: 24px;
+}
+.origin-checksums summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  cursor: pointer;
+}
+.origin-checksums summary::before {
+  content: '▸';
+  margin-right: 8px;
+}
+.origin-checksums[open] summary::before {
+  content: '▾';
+}
+.origin-checksums .origin-table {
+  margin-bottom: 0;
+}
+.origin-source {
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .story * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media (min-width: 900px) {
+  /* The hero is short on the desk, so that the fabric, the main chart of the
+     story, shows in the first screen. */
+  .hero {
+    padding: 32px 24px 8px 120px;
+  }
+  .hero-text {
+    max-width: 920px;
+  }
+  .kicker {
+    margin-bottom: 8px;
+    font-size: 15px;
+  }
+  .hero h1 {
+    margin-bottom: 12px;
+    font-size: 56px;
+  }
+  .standfirst {
+    max-width: 760px;
+    font-size: 21px;
+  }
+  .cue {
+    display: none;
+  }
+  .story-body {
+    display: grid;
+    grid-template-columns: 560px minmax(0, 1fr);
+    align-items: start;
+  }
+  .fabric-column {
+    grid-column: 2;
+    grid-row: 1;
+    top: 96px;
+    padding: 24px 48px 16px 24px;
+    border-bottom: 0;
+  }
+  .chapters {
+    grid-column: 1;
+    grid-row: 1;
+    padding: 0 24px 0 120px;
+  }
+  .chapter {
+    min-height: 900px;
+    padding-top: 110px;
+  }
+  .chapter:first-child {
+    padding-top: 16px;
+  }
+  .chapter {
+    scroll-margin-top: 0;
+  }
+  .chapter-number {
+    font-size: 16px;
+  }
+  .chapter-title {
+    font-size: 40px;
+  }
+  .chapter-big {
+    font-size: 64px;
+    white-space: nowrap;
+  }
+  .chapter-body {
+    font-size: 20px;
+  }
+  .fabric-title {
+    font-size: 16px;
+  }
+  .fabric-years span:nth-child(even) {
+    display: inline;
+  }
+  .day-card {
+    top: 96px;
+    right: auto;
+    bottom: auto;
+    left: max(24px, calc(50% - 696px));
+    width: 420px;
+    max-height: calc(100vh - 120px);
+    border: 1px solid var(--line);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  }
+  .day-card h2 {
+    font-size: 26px;
+  }
+  .origin {
+    padding: 64px 120px;
+  }
+  .origin code {
+    white-space: nowrap;
+    word-break: normal;
+  }
+}

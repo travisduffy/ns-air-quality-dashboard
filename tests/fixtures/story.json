@@ -1,0 +1,129 @@
+{
+  "values": {
+    "c14_o3_pm25_station_days_judged": 49163,
+    "c14_o3_pm25_station_days_over": 50,
+    "c14_o3_pm25_pct_over": 0.1,
+    "c14_SO2_max_pct_of_limit": 30.54,
+    "c4_station_days_judged": 24413,
+    "c4_station_days_gt27": 4,
+    "c4_province_top1_day": "2021-07-27",
+    "c4_province_top1_mean": 19.12,
+    "c4_province_top1_stations": 6,
+    "c4_top1_daily_mean": 35.14,
+    "c4_top2_daily_mean": 30.89,
+    "c4_top3_daily_mean": 29.98,
+    "c4_top4_daily_mean": 27.58,
+    "c2_june2023_rise_Lake Major": 37.0,
+    "c2_june2023_rise_Sydney": 34.67,
+    "c2_june2023_rise_Pictou": 34.02,
+    "c2_june2023_rise_Port Hawkesbury": 32.48,
+    "c2_june2023_rise_Kentville": 24.82,
+    "c2_june2023_rise_Aylesford": 11.85,
+    "c2_halifax_johnston_pm25_june2023_readings": 0,
+    "c1_trs_hours_ge3_2016": 27,
+    "c1_trs_hours_ge3_2017": 15,
+    "c1_trs_hours_ge3_2018": 24,
+    "c1_trs_hours_ge3_2019": 36,
+    "c1_trs_hours_ge3_2020": 1,
+    "c1_trs_hours_ge3_2021": 0,
+    "c1_trs_hours_ge3_2022": 0,
+    "c1_trs_hours_ge3_2023": 0,
+    "c1_trs_hours_ge3_2024": 0,
+    "c1_trs_hours_ge3_2025": 1,
+    "c1_trs_hours_ge3_2016_2019": 102,
+    "c1_trs_hours_ge3_2020_2025": 2,
+    "c3_o3_month_mean_3": 36.67,
+    "c3_o3_month_mean_9": 22.17,
+    "c5_pct_total": 96.75,
+    "c2_halifax_johnston_pm25_longest_gap_2023_hours": 2291,
+    "c4_top1_station_day": "Aylesford 2025-08-24",
+    "c4_top2_station_day": "Sydney 2023-06-01",
+    "c4_top3_station_day": "Kentville 2021-07-27",
+    "c4_top4_station_day": "Port Hawkesbury 2025-07-16"
+  },
+  "chapters": [
+    {
+      "chapter": 1,
+      "highlight": {
+        "layer": "pm25",
+        "from": "2016-01-01",
+        "to": "2025-12-31",
+        "stations": ["Aylesford", "Kentville", "Sydney", "Port Hawkesbury"],
+        "marks": [
+          {
+            "station": "Kentville",
+            "day": "2021-07-27"
+          },
+          {
+            "station": "Sydney",
+            "day": "2023-06-01"
+          }
+        ]
+      }
+    },
+    {
+      "chapter": 2,
+      "highlight": {
+        "layer": "pm25",
+        "from": "2021-07-27",
+        "to": "2025-08-24",
+        "stations": ["Aylesford", "Kentville", "Sydney", "Port Hawkesbury"],
+        "marks": [
+          {
+            "station": "Aylesford",
+            "day": "2025-08-24"
+          },
+          {
+            "station": "Sydney",
+            "day": "2023-06-01"
+          },
+          {
+            "station": "Kentville",
+            "day": "2021-07-27"
+          },
+          {
+            "station": "Port Hawkesbury",
+            "day": "2025-07-16"
+          }
+        ]
+      }
+    },
+    {
+      "chapter": 3,
+      "highlight": {
+        "layer": "pm25",
+        "from": "2023-06-01",
+        "to": "2023-06-30",
+        "stations": ["Lake Major", "Sydney", "Halifax Johnston"]
+      }
+    },
+    {
+      "chapter": 4,
+      "highlight": {
+        "layer": "trs",
+        "from": "2016-01-01",
+        "to": "2025-12-31",
+        "stations": ["Pictou"]
+      }
+    },
+    {
+      "chapter": 5,
+      "highlight": {
+        "layer": "o3",
+        "from": "2016-01-01",
+        "to": "2025-12-31",
+        "stations": ["Kentville"],
+        "months": [3, 9]
+      }
+    },
+    {
+      "chapter": 6,
+      "highlight": {
+        "layer": "pm25-hours",
+        "from": "2018-01-01",
+        "to": "2025-12-31",
+        "stations": ["Halifax", "Halifax Johnston"]
+      }
+    }
+  ]
+}

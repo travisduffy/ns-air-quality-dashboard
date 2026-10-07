@@ -1,0 +1,684 @@
+{
+  "chapters": [
+    {
+      "chapter": 1,
+      "highlight": {
+        "from": "2016-01-01",
+        "layer": "pm25",
+        "marks": [
+          {
+            "day": "2016-08-25",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2017-05-18",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2017-05-18",
+            "station": "Kentville"
+          },
+          {
+            "day": "2017-05-19",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2017-05-19",
+            "station": "Kentville"
+          },
+          {
+            "day": "2017-06-11",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2017-06-11",
+            "station": "Kentville"
+          },
+          {
+            "day": "2017-06-11",
+            "station": "Lake Major"
+          },
+          {
+            "day": "2017-06-11",
+            "station": "Port Hawkesbury"
+          },
+          {
+            "day": "2017-06-12",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2017-06-12",
+            "station": "Kentville"
+          },
+          {
+            "day": "2018-04-24",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2018-04-24",
+            "station": "Kentville"
+          },
+          {
+            "day": "2018-04-24",
+            "station": "Pictou"
+          },
+          {
+            "day": "2018-05-02",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2018-05-02",
+            "station": "Kentville"
+          },
+          {
+            "day": "2018-05-03",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2021-03-11",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2021-03-12",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2021-03-12",
+            "station": "Kentville"
+          },
+          {
+            "day": "2021-03-12",
+            "station": "Lake Major"
+          },
+          {
+            "day": "2021-06-07",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2021-06-08",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2021-07-27",
+            "station": "Kentville"
+          },
+          {
+            "day": "2022-04-16",
+            "station": "Port Hawkesbury"
+          },
+          {
+            "day": "2023-04-11",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2023-04-11",
+            "station": "Kentville"
+          },
+          {
+            "day": "2023-04-11",
+            "station": "Pictou"
+          },
+          {
+            "day": "2023-04-12",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2023-04-12",
+            "station": "Kentville"
+          },
+          {
+            "day": "2023-06-01",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2023-06-01",
+            "station": "Sydney"
+          },
+          {
+            "day": "2023-06-13",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2023-07-19",
+            "station": "Port Hawkesbury"
+          },
+          {
+            "day": "2024-06-14",
+            "station": "Halifax Johnston"
+          },
+          {
+            "day": "2024-06-14",
+            "station": "Kentville"
+          },
+          {
+            "day": "2024-06-20",
+            "station": "Pictou"
+          },
+          {
+            "day": "2024-09-19",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2024-10-23",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2025-06-05",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2025-06-06",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2025-07-16",
+            "station": "Port Hawkesbury"
+          },
+          {
+            "day": "2025-08-13",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2025-08-14",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2025-08-24",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2025-10-06",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2025-10-06",
+            "station": "Kentville"
+          },
+          {
+            "day": "2025-10-07",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2025-10-07",
+            "station": "Halifax Johnston"
+          },
+          {
+            "day": "2025-10-07",
+            "station": "Kentville"
+          }
+        ],
+        "stations": [
+          "Halifax",
+          "Halifax Johnston",
+          "Lake Major",
+          "Kentville",
+          "Aylesford",
+          "Pictou",
+          "Port Hawkesbury",
+          "Sydney"
+        ],
+        "to": "2025-12-31"
+      }
+    },
+    {
+      "chapter": 2,
+      "highlight": {
+        "from": "2016-01-01",
+        "layer": "pm25",
+        "marks": [
+          {
+            "day": "2025-08-24",
+            "station": "Aylesford"
+          },
+          {
+            "day": "2023-06-01",
+            "station": "Sydney"
+          },
+          {
+            "day": "2021-07-27",
+            "station": "Kentville"
+          },
+          {
+            "day": "2025-07-16",
+            "station": "Port Hawkesbury"
+          }
+        ],
+        "stations": [
+          "Halifax",
+          "Halifax Johnston",
+          "Lake Major",
+          "Kentville",
+          "Aylesford",
+          "Pictou",
+          "Port Hawkesbury",
+          "Sydney"
+        ],
+        "to": "2025-12-31"
+      }
+    },
+    {
+      "chapter": 3,
+      "highlight": {
+        "from": "2023-06-01",
+        "layer": "pm25",
+        "stations": [
+          "Halifax Johnston",
+          "Lake Major",
+          "Kentville",
+          "Aylesford",
+          "Pictou",
+          "Port Hawkesbury",
+          "Sydney"
+        ],
+        "to": "2023-06-30"
+      }
+    },
+    {
+      "chapter": 4,
+      "highlight": {
+        "from": "2016-01-01",
+        "layer": "trs",
+        "marks": [
+          {
+            "day": "2016-01-09",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-01-16",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-02-24",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-03-02",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-04-09",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-04-23",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-05-07",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-05-22",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-06-26",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-06-27",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-07-07",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-07-13",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-07-14",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-07-25",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-08-13",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-08-24",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-09-21",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-10-20",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-10-21",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-10-22",
+            "station": "Pictou"
+          },
+          {
+            "day": "2016-10-29",
+            "station": "Pictou"
+          },
+          {
+            "day": "2017-03-02",
+            "station": "Pictou"
+          },
+          {
+            "day": "2017-06-22",
+            "station": "Pictou"
+          },
+          {
+            "day": "2017-06-23",
+            "station": "Pictou"
+          },
+          {
+            "day": "2017-07-24",
+            "station": "Pictou"
+          },
+          {
+            "day": "2017-07-25",
+            "station": "Pictou"
+          },
+          {
+            "day": "2017-07-26",
+            "station": "Pictou"
+          },
+          {
+            "day": "2017-08-06",
+            "station": "Pictou"
+          },
+          {
+            "day": "2017-08-08",
+            "station": "Pictou"
+          },
+          {
+            "day": "2017-10-09",
+            "station": "Pictou"
+          },
+          {
+            "day": "2017-11-06",
+            "station": "Pictou"
+          },
+          {
+            "day": "2018-04-04",
+            "station": "Pictou"
+          },
+          {
+            "day": "2018-06-05",
+            "station": "Pictou"
+          },
+          {
+            "day": "2018-07-06",
+            "station": "Pictou"
+          },
+          {
+            "day": "2018-07-15",
+            "station": "Pictou"
+          },
+          {
+            "day": "2018-07-25",
+            "station": "Pictou"
+          },
+          {
+            "day": "2018-07-26",
+            "station": "Pictou"
+          },
+          {
+            "day": "2018-08-03",
+            "station": "Pictou"
+          },
+          {
+            "day": "2018-08-08",
+            "station": "Pictou"
+          },
+          {
+            "day": "2018-08-09",
+            "station": "Pictou"
+          },
+          {
+            "day": "2018-08-12",
+            "station": "Pictou"
+          },
+          {
+            "day": "2018-08-20",
+            "station": "Pictou"
+          },
+          {
+            "day": "2018-08-21",
+            "station": "Pictou"
+          },
+          {
+            "day": "2018-08-22",
+            "station": "Pictou"
+          },
+          {
+            "day": "2018-08-27",
+            "station": "Pictou"
+          },
+          {
+            "day": "2018-09-10",
+            "station": "Pictou"
+          },
+          {
+            "day": "2018-09-30",
+            "station": "Pictou"
+          },
+          {
+            "day": "2018-10-06",
+            "station": "Pictou"
+          },
+          {
+            "day": "2018-10-16",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-02-07",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-02-08",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-02-24",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-03-14",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-03-22",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-03-27",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-04-26",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-04-27",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-05-02",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-05-03",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-05-06",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-05-10",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-05-21",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-05-24",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-06-15",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-06-19",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-06-27",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-07-05",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-07-06",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-07-19",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-08-01",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-08-07",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-09-04",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-09-06",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-09-07",
+            "station": "Pictou"
+          },
+          {
+            "day": "2019-10-01",
+            "station": "Pictou"
+          },
+          {
+            "day": "2020-07-12",
+            "station": "Pictou"
+          },
+          {
+            "day": "2025-09-08",
+            "station": "Pictou"
+          }
+        ],
+        "stations": [
+          "Pictou"
+        ],
+        "to": "2025-12-31"
+      }
+    },
+    {
+      "chapter": 5,
+      "highlight": {
+        "from": "2016-01-01",
+        "layer": "o3",
+        "months": [
+          3,
+          9
+        ],
+        "stations": [
+          "Halifax",
+          "Halifax Johnston",
+          "Lake Major",
+          "Kentville",
+          "Aylesford",
+          "Pictou",
+          "Port Hawkesbury",
+          "Sydney"
+        ],
+        "to": "2025-12-31"
+      }
+    },
+    {
+      "chapter": 6,
+      "highlight": {
+        "from": "2018-01-01",
+        "layer": "pm25-hours",
+        "marks": [
+          {
+            "day": "2023-04-17",
+            "station": "Halifax Johnston"
+          },
+          {
+            "day": "2023-07-21",
+            "station": "Halifax Johnston"
+          }
+        ],
+        "stations": [
+          "Halifax",
+          "Halifax Johnston"
+        ],
+        "to": "2025-12-31"
+      }
+    }
+  ],
+  "values": {
+    "c14_SO2_max_pct_of_limit": 30.54,
+    "c14_o3_pm25_pct_over": 0.1,
+    "c14_o3_pm25_station_days_judged": 49163,
+    "c14_o3_pm25_station_days_over": 50,
+    "c1_trs_hours_ge3_2016": 27,
+    "c1_trs_hours_ge3_2016_2019": 102,
+    "c1_trs_hours_ge3_2017": 15,
+    "c1_trs_hours_ge3_2018": 24,
+    "c1_trs_hours_ge3_2019": 36,
+    "c1_trs_hours_ge3_2020": 1,
+    "c1_trs_hours_ge3_2020_2025": 2,
+    "c1_trs_hours_ge3_2021": 0,
+    "c1_trs_hours_ge3_2022": 0,
+    "c1_trs_hours_ge3_2023": 0,
+    "c1_trs_hours_ge3_2024": 0,
+    "c1_trs_hours_ge3_2025": 1,
+    "c2_halifax_johnston_pm25_june2023_readings": 0,
+    "c2_halifax_johnston_pm25_longest_gap_2023_hours": 2291,
+    "c2_june2023_rise_Aylesford": 11.85,
+    "c2_june2023_rise_Kentville": 24.82,
+    "c2_june2023_rise_Lake Major": 37,
+    "c2_june2023_rise_Pictou": 34.02,
+    "c2_june2023_rise_Port Hawkesbury": 32.48,
+    "c2_june2023_rise_Sydney": 34.67,
+    "c3_o3_month_mean_3": 36.67,
+    "c3_o3_month_mean_9": 22.17,
+    "c4_province_top1_day": "2021-07-27",
+    "c4_province_top1_mean": 19.12,
+    "c4_province_top1_stations": 6,
+    "c4_station_days_gt27": 4,
+    "c4_station_days_judged": 24413,
+    "c4_top1_daily_mean": 35.14,
+    "c4_top1_station_day": "Aylesford 2025-08-24",
+    "c4_top2_daily_mean": 30.89,
+    "c4_top2_station_day": "Sydney 2023-06-01",
+    "c4_top3_daily_mean": 29.98,
+    "c4_top3_station_day": "Kentville 2021-07-27",
+    "c4_top4_daily_mean": 27.58,
+    "c4_top4_station_day": "Port Hawkesbury 2025-07-16",
+    "c5_pct_total": 96.75
+  }
+}

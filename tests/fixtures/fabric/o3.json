@@ -1,0 +1,14 @@
+{
+  "layer": "o3",
+  "firstDay": "2016-01-01",
+  "dayCount": 3,
+  "unit": "ppb",
+  "limit": 63,
+  "stations": [
+    {
+      "station": "Kentville",
+      "values": [31.5, 30.25, null],
+      "hours": [24, 24, 6]
+    }
+  ]
+}

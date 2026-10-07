@@ -1,0 +1,205 @@
+.coverage {
+  --cv-ink: var(--ink);
+  --cv-muted: var(--ink-2);
+  --cv-line: var(--line);
+  --cv-accent: var(--accent);
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 24px;
+  color: var(--cv-ink);
+  font: 400 16px/1.5 var(--sans);
+}
+.coverage h1,
+.coverage h2,
+.coverage h3 {
+  font-family: var(--serif);
+}
+.coverage h1 {
+  margin: 0 0 8px;
+  font-size: 40px;
+  line-height: 1.1;
+}
+.coverage .lede {
+  margin: 0 0 16px;
+  color: var(--cv-muted);
+  font: 400 19px/1.45 var(--serif);
+}
+/* The sidebar sits below the map on a narrow screen, and to its right on a
+   wide one. The county buttons come last on both. */
+.coverage-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'map' 'side' 'buttons';
+  gap: 16px;
+  align-items: start;
+}
+.coverage-map {
+  grid-area: map;
+  min-width: 0;
+}
+.coverage-sidebar {
+  grid-area: side;
+}
+.coverage-counties {
+  grid-area: buttons;
+}
+@media (min-width: 900px) {
+  .coverage-layout {
+    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-areas: 'map side' 'buttons side';
+  }
+  .coverage-sidebar {
+    position: sticky;
+    top: 12px;
+  }
+}
+.coverage-frame {
+  position: relative;
+  width: 100%;
+  height: 56vh;
+  min-height: 300px;
+  max-height: 720px;
+  overflow: hidden;
+  border: 1px solid var(--cv-line);
+  border-radius: 6px;
+  background: #e9e6df;
+}
+.coverage-frame .error {
+  position: relative;
+  margin: 12px;
+}
+.coverage-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+/* The canvas stays hidden until the palette is applied. */
+.coverage-map[data-ready='false'] .coverage-canvas {
+  visibility: hidden;
+}
+/* The tip follows the pointer, and it never takes the pointer itself. */
+.coverage-tip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  margin: 16px 0 0 14px;
+  max-width: 240px;
+  display: grid;
+  gap: 2px;
+  padding: 6px 10px;
+  border: 1px solid var(--cv-line);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 2;
+}
+.coverage-counties {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.coverage-counties button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 10px;
+  border: 1px solid var(--cv-line);
+  border-radius: 18px;
+  background: var(--bg);
+  font: inherit;
+  font-size: 14px;
+  color: var(--cv-ink);
+  cursor: pointer;
+}
+.coverage-counties button.picked {
+  outline: 3px solid var(--cv-accent);
+  outline-offset: 1px;
+}
+.coverage-counties button:focus-visible {
+  outline: 3px dashed var(--cv-ink);
+  outline-offset: 2px;
+}
+.coverage .swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+}
+.coverage-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 10px 0 0;
+  font-size: 14px;
+  color: var(--cv-muted);
+}
+.coverage-legend .key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.coverage-sidebar {
+  padding: 16px;
+  border: 1px solid var(--cv-line);
+  border-radius: 6px;
+  background: #fff;
+}
+.coverage-sidebar h2 {
+  margin: 0 0 8px;
+}
+.coverage-sidebar .hint {
+  margin: 0;
+  color: var(--cv-muted);
+}
+.stations {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.station {
+  padding: 10px 12px;
+  border: 1px solid var(--cv-line);
+  border-left: 4px solid var(--ink-2);
+  border-radius: 4px;
+}
+.station[data-stopped='true'] {
+  border-left-color: var(--line);
+}
+.station h3 {
+  margin: 0 0 4px;
+}
+.station dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 0;
+  font-size: 14px;
+}
+.station dt {
+  color: var(--cv-muted);
+}
+.station dd {
+  margin: 0;
+}
+.station .status {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+.coverage-sidebar .source {
+  margin: 16px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--cv-line);
+  font-size: 14px;
+  color: var(--cv-muted);
+}

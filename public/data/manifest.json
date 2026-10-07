@@ -1,0 +1,326 @@
+{
+  "datasets": [
+    {
+      "fetchedAt": "2026-10-06T03:16:03.551Z",
+      "id": "36wx-n4y2",
+      "name": "Nova Scotia Provincial Ambient Fine Particulate Matter (PM2.5) Hourly Data Halifax TEOM",
+      "rows": 0,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "url": "https://data.novascotia.ca/resource/36wx-n4y2.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:15:38.542Z",
+      "id": "3j2a-f43q",
+      "name": "Nova Scotia Provincial Ambient Ground-level Ozone (O3) Hourly Data Aylesford",
+      "rows": 87673,
+      "sha256": "485e8f9d18886597fa9e7f32115b65167d83ef8fbd4754d3408a587bf2aa29cd",
+      "url": "https://data.novascotia.ca/resource/3j2a-f43q.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:19:44.318Z",
+      "id": "5b98-mtue",
+      "name": "Nova Scotia Provincial Ambient Nitrogen Oxides (NOx, NO2, NO) Hourly Data Halifax Johnston",
+      "rows": 263016,
+      "sha256": "a2acc919a601b357ed606f61b27ee2fb8bb18cf4b8b4deebc42c09583cd4f592",
+      "url": "https://data.novascotia.ca/resource/5b98-mtue.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:19:49.856Z",
+      "id": "5hnc-kmpv",
+      "name": "Nova Scotia Provincial Ambient Fine Particulate Matter (PM2.5) Hourly Data Kentville BAM/T640",
+      "rows": 87672,
+      "sha256": "4b62a76be7052eb0983e029ba7999b8a8c441f5a3abf94eda13f7e48b7d8742f",
+      "url": "https://data.novascotia.ca/resource/5hnc-kmpv.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:18:45.345Z",
+      "id": "6ce5-rxzc",
+      "name": "Nova Scotia Provincial Ambient Sulphur Dioxide (SO2) Hourly Data Lake Major",
+      "rows": 87673,
+      "sha256": "36d606e1d4c9e6df54cf83544532175ba982972e4a01c1a2c1fcb83d1acd866a",
+      "url": "https://data.novascotia.ca/resource/6ce5-rxzc.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:19:13.151Z",
+      "id": "7dfb-h4nw",
+      "name": "Nova Scotia Provincial Ambient Sulphur Dioxide (SO2) Hourly Data Sydney",
+      "rows": 87673,
+      "sha256": "abb32bec2de0a3ed46a01cd2ca4e03be75835ab4f7dd3d85909b551c756f70cf",
+      "url": "https://data.novascotia.ca/resource/7dfb-h4nw.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:16:30.854Z",
+      "id": "7mhg-zhcg",
+      "name": "Nova Scotia Provincial Ambient Fine Particulate Matter (PM2.5) Hourly Data Sydney BAM/T640",
+      "rows": 87672,
+      "sha256": "77037f7ddb715eec204398e4dd81780d85af90f6828917737125645fb63272f6",
+      "url": "https://data.novascotia.ca/resource/7mhg-zhcg.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:16:03.031Z",
+      "id": "7nff-dbje",
+      "name": "Nova Scotia Provincial Ambient Ground-level Ozone (O3) Hourly Data Sydney",
+      "rows": 87672,
+      "sha256": "5961badd0d54bd0e04ba90c97b79ab2420b51625bfd7df12fe62195d7aeae2a4",
+      "url": "https://data.novascotia.ca/resource/7nff-dbje.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:16:33.148Z",
+      "id": "85ft-byz6",
+      "name": "Nova Scotia Provincial Ambient Total Reduced Sulphur (TRS) Hourly Data Pictou",
+      "rows": 87674,
+      "sha256": "76be569fa6ac11f8e1ad17c0d7e94eb423b8fdc37628ed52782299783d7c1a59",
+      "url": "https://data.novascotia.ca/resource/85ft-byz6.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:17:42.141Z",
+      "id": "8tvc-9ah2",
+      "name": "Nova Scotia Provincial Ambient Carbon Monoxide (CO) Hourly Data Halifax Johnston",
+      "rows": 87672,
+      "sha256": "dd7104de8240ecb75cc9be95e74e496351b32340de1ad2939546debc1429a55a",
+      "url": "https://data.novascotia.ca/resource/8tvc-9ah2.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:15:57.727Z",
+      "id": "a7ee-qcwj",
+      "name": "Nova Scotia Provincial Ambient Ground-level Ozone (O3) Hourly Data Halifax Johnston",
+      "rows": 87672,
+      "sha256": "82a003fa4653707e6b8ea6f052e99995301fafd88c5a1b559e1c838dde751ec8",
+      "url": "https://data.novascotia.ca/resource/a7ee-qcwj.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:18:31.339Z",
+      "id": "ccem-uxu9",
+      "name": "Nova Scotia Provincial Ambient Ground-level Ozone (O3) Hourly Data Kentville",
+      "rows": 87672,
+      "sha256": "da1b29a403ff1a361d8e907b97fdf15e3e0655b962c6d2b685c4fb12c9034f77",
+      "url": "https://data.novascotia.ca/resource/ccem-uxu9.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:16:19.564Z",
+      "id": "ddk3-mz42",
+      "name": "Nova Scotia Provincial Ambient Fine Particulate Matter (PM2.5) Hourly Data Halifax BAM/T640",
+      "rows": 87672,
+      "sha256": "b13eddf41a7d4decffe1f9559a3c6b73e207d84e4e107979a66e447975477496",
+      "url": "https://data.novascotia.ca/resource/ddk3-mz42.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:16:07.572Z",
+      "id": "de89-3xrj",
+      "name": "Nova Scotia Provincial Ambient Fine Particulate Matter (PM2.5) Hourly Data Lake Major BAM/T640",
+      "rows": 96432,
+      "sha256": "1e3c3bf41b239b4ef0181ada48de4c0799dc33ecae0549262fb2fb5aa3784d60",
+      "url": "https://data.novascotia.ca/resource/de89-3xrj.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:15:53.215Z",
+      "id": "dicb-nrfk",
+      "name": "Nova Scotia Provincial Ambient Fine Particulate Matter (PM2.5) Hourly Data Sable Island BAM",
+      "rows": 0,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "url": "https://data.novascotia.ca/resource/dicb-nrfk.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:15:58.277Z",
+      "id": "f7xw-punz",
+      "name": "Nova Scotia Provincial Ambient Ground-level Ozone (O3) Hourly Data Sable Island",
+      "rows": 0,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "url": "https://data.novascotia.ca/resource/f7xw-punz.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:16:04.052Z",
+      "id": "gh5x-n5t9",
+      "name": "Nova Scotia Provincial Ambient Fine Particulate Matter (PM2.5) Hourly Data Lake Major TEOM",
+      "rows": 0,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "url": "https://data.novascotia.ca/resource/gh5x-n5t9.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:15:54.758Z",
+      "id": "gqhb-4cnd",
+      "name": "Nova Scotia Provincial Ambient Ground-level Ozone (O3) Hourly Data Lake Major",
+      "rows": 87672,
+      "sha256": "4832d4296e33253f3e8d856d5b9fbe22d4e3e3cd179a4e0dfede78f77926d113",
+      "url": "https://data.novascotia.ca/resource/gqhb-4cnd.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:17:17.829Z",
+      "id": "h5pg-7f7c",
+      "name": "Nova Scotia Provincial Ambient Sulphur Dioxide (SO2) Hourly Data Pictou",
+      "rows": 87673,
+      "sha256": "11537f8c8a386fb8677f485c541b66c39651827880fc2cd2826c53117db80df1",
+      "url": "https://data.novascotia.ca/resource/h5pg-7f7c.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:15:58.898Z",
+      "id": "hain-k6pj",
+      "name": "Nova Scotia Provincial Ambient Fine Particulate Matter (PM2.5) Hourly Data Sydney TEOM",
+      "rows": 0,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "url": "https://data.novascotia.ca/resource/hain-k6pj.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:20:25.897Z",
+      "id": "ic64-y5y7",
+      "name": "Nova Scotia Provincial Ambient Nitrogen Oxides (NOx, NO2, NO) Hourly Data Sydney",
+      "rows": 263016,
+      "sha256": "2eb204e981a525deef5984bd5a01961243e23f3dfdf41559024f5ddb3b38b169",
+      "url": "https://data.novascotia.ca/resource/ic64-y5y7.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:18:38.370Z",
+      "id": "jaza-xvut",
+      "name": "Nova Scotia Provincial Ambient Nitrogen Oxides (NOx, NO2, NO) Hourly Data Sable Island",
+      "rows": 0,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "url": "https://data.novascotia.ca/resource/jaza-xvut.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:17:26.941Z",
+      "id": "m4gi-v8hp",
+      "name": "Nova Scotia Provincial Ambient Nitrogen Oxides (NOx, NO2, NO) Hourly Data Pictou",
+      "rows": 263013,
+      "sha256": "cc022545277a989d2564dc5c180e68f0dc09c35b905bef9271068e33a03df250",
+      "url": "https://data.novascotia.ca/resource/m4gi-v8hp.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:16:13.869Z",
+      "id": "md4n-ch5r",
+      "name": "Nova Scotia Provincial Ambient Fine Particulate Matter (PM2.5) Hourly Data Pictou BAM/T640",
+      "rows": 87672,
+      "sha256": "88e04d092eb58b823ba93aa8bdd448cd987feae85072ba28b7b2206da92b97af",
+      "url": "https://data.novascotia.ca/resource/md4n-ch5r.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:20:28.496Z",
+      "id": "mydf-kwzn",
+      "name": "Nova Scotia Provincial Ambient Sulphur Dioxide (SO2) Hourly Data Halifax Johnston",
+      "rows": 87672,
+      "sha256": "be380892e3f32705e7ea805798e8f7c6fafca12e56d8d6051db33e0d89605853",
+      "url": "https://data.novascotia.ca/resource/mydf-kwzn.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:15:45.036Z",
+      "id": "n7es-ur7c",
+      "name": "Nova Scotia Provincial Ambient Ground-level Ozone (O3) Hourly Data Port Hawkesbury",
+      "rows": 87672,
+      "sha256": "a79c3d62088c7481ef299ddd1fb5bc1a4fe991bf7a4fa90484ef1e479c16aa45",
+      "url": "https://data.novascotia.ca/resource/n7es-ur7c.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:16:10.329Z",
+      "id": "ps8r-e55x",
+      "name": "Nova Scotia Provincial Ambient Fine Particulate Matter (PM2.5) Hourly Data Port Hawkesbury BAM/T640",
+      "rows": 87672,
+      "sha256": "a3789aa461267b617b67f9f6557ae0c1621636da0f41437cdffee549e742081d",
+      "url": "https://data.novascotia.ca/resource/ps8r-e55x.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:16:17.386Z",
+      "id": "qhfm-cp25",
+      "name": "Nova Scotia Provincial Ambient Fine Particulate Matter (PM2.5) Hourly Data Aylesford BAM/T640",
+      "rows": 87672,
+      "sha256": "de42811c9982c2cbac2b41b7172a10b3c47921d634ae8dd4618b4431c6d7609b",
+      "url": "https://data.novascotia.ca/resource/qhfm-cp25.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:17:08.858Z",
+      "id": "re2g-ji5f",
+      "name": "Nova Scotia Provincial Ambient Nitrogen Oxides (NOx, NO2, NO) Hourly Data Port Hawkesbury",
+      "rows": 263016,
+      "sha256": "8114dd656f2b411722fd5763d280100478d4fa59b999ec3fbdc5ecf64c379725",
+      "url": "https://data.novascotia.ca/resource/re2g-ji5f.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:19:08.874Z",
+      "id": "rqp4-39eg",
+      "name": "Nova Scotia Provincial Ambient Nitrogen Oxides (NOx, NO2, NO) Hourly Data Lake Major",
+      "rows": 263016,
+      "sha256": "e2af8a1a175e13573e1ec03eedbddc9904b942b8f1be09169993b335bb6c656c",
+      "url": "https://data.novascotia.ca/resource/rqp4-39eg.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:15:52.923Z",
+      "id": "tfbp-itby",
+      "name": "Nova Scotia Provincial Ambient Ground-level Ozone (O3) Hourly Data Pictou",
+      "rows": 87672,
+      "sha256": "0a9e80e7f218a3a0d0bbd1c7b424026803ff70f4098a9e30706ca3885f833b1c",
+      "url": "https://data.novascotia.ca/resource/tfbp-itby.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:20:01.780Z",
+      "id": "u5en-p4f5",
+      "name": "Nova Scotia Provincial Ambient Sulphur Dioxide (SO2) Hourly Data Port Hawkesbury",
+      "rows": 87672,
+      "sha256": "81a8b3d16eeaf365e66028e3280660ef6b4432532fc32a5aeae0fe0c9ba5b1a5",
+      "url": "https://data.novascotia.ca/resource/u5en-p4f5.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:18:32.106Z",
+      "id": "v5jg-6zdc",
+      "name": "Nova Scotia Provincial Ambient Sulphur Dioxide (SO2) Hourly Data Sable Island",
+      "rows": 0,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "url": "https://data.novascotia.ca/resource/v5jg-6zdc.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:18:51.635Z",
+      "id": "v8i9-2nd3",
+      "name": "Nova Scotia Provincial Ambient Nitrogen Oxides (NOx, NO2, NO) Hourly Data Aylesford",
+      "rows": 52629,
+      "sha256": "667809f365172891afb3c94faa871a9144afd13eaef9366ca6ba98700afe377a",
+      "url": "https://data.novascotia.ca/resource/v8i9-2nd3.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:18:38.171Z",
+      "id": "w9gj-pd7g",
+      "name": "Nova Scotia Provincial Ambient Carbon Monoxide (CO) Hourly Data Sydney",
+      "rows": 87673,
+      "sha256": "fb20f5c80e8df74704789af664eea8a859a07ac92816f33994a6f1e75ff55d6c",
+      "url": "https://data.novascotia.ca/resource/w9gj-pd7g.json"
+    },
+    {
+      "fetchedAt": "2026-10-06T03:16:54.111Z",
+      "id": "wqvb-pd78",
+      "name": "Nova Scotia Provincial Ambient Nitrogen Oxides (NOx, NO2, NO) Hourly Data Kentville",
+      "rows": 263013,
+      "sha256": "9ba0a0409656c2ada1c219e56524a228b0bd620d30cb5a52d30481e5d043edc3",
+      "url": "https://data.novascotia.ca/resource/wqvb-pd78.json"
+    }
+  ],
+  "fetchedAt": "2026-10-06T03:20:28.496Z",
+  "files": [
+    {
+      "bytes": 251371,
+      "path": "fabric/o3.json",
+      "sha256": "1cb8b52f58d2b3d2adb7ce179e0f4f2ddb9d3960d50bfa65ffa280b1c3773b9e"
+    },
+    {
+      "bytes": 226698,
+      "path": "fabric/pm25.json",
+      "sha256": "5fc1c22a48132287f2d7e4139387fa58fb174b317f8439ac0d04bf78342e2bd7"
+    },
+    {
+      "bytes": 18443,
+      "path": "fabric/trs.json",
+      "sha256": "2cec70fdc4b531369b8c1e7d5c3e26eb5d9d0f3f0cb3d1fcdd26e5f0d44bf057"
+    },
+    {
+      "bytes": 2647,
+      "path": "stations.json",
+      "sha256": "c5e37b0e1bd7e4737388cb587b997c9c736ec2c027d00f66031a65cac19034a8"
+    },
+    {
+      "bytes": 15796,
+      "path": "story.json",
+      "sha256": "a2ed0ad6c754718e672a44edf9189e45dcf100cf68f720d6eba88fff681126d4"
+    }
+  ],
+  "schemaVersion": 1,
+  "source": {
+    "licence": "Nova Scotia Open Government Licence",
+    "name": "Nova Scotia Provincial Ambient Hourly air quality data",
+    "site": "https://data.novascotia.ca"
+  }
+}

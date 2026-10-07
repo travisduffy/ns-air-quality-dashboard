@@ -1,0 +1,10 @@
+{
+  "layer": "trs",
+  "firstDay": "2016-01-01",
+  "dayCount": 3,
+  "unit": "hours",
+  "limit": null,
+  "stations": [
+    { "station": "Pictou", "values": [0, 2, 0], "hours": [24, 24, 23] }
+  ]
+}

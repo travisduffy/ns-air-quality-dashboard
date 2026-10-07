@@ -1,0 +1,140 @@
+[
+  {
+    "county": "Halifax, NS",
+    "expectedHours": 122808,
+    "firstReport": "2016-01-01T01:00:00",
+    "id": "halifax",
+    "lastReport": "2018-01-01T00:00:00",
+    "name": "Halifax",
+    "reportedHours": 120268,
+    "series": [
+      "CO",
+      "NO",
+      "NO2",
+      "NOX",
+      "O3",
+      "PM2.5",
+      "SO2"
+    ]
+  },
+  {
+    "county": "Halifax, NS",
+    "expectedHours": 490896,
+    "firstReport": "2018-01-01T01:00:00",
+    "id": "halifax-johnston",
+    "lastReport": "2026-01-01T00:00:00",
+    "name": "Halifax Johnston",
+    "reportedHours": 482075,
+    "series": [
+      "CO",
+      "NO",
+      "NO2",
+      "NOX",
+      "O3",
+      "PM2.5",
+      "SO2"
+    ]
+  },
+  {
+    "county": "Halifax, NS",
+    "expectedHours": 526032,
+    "firstReport": "2016-01-01T01:00:00",
+    "id": "lake-major",
+    "lastReport": "2026-01-01T00:00:00",
+    "name": "Lake Major",
+    "reportedHours": 506090,
+    "series": [
+      "NO",
+      "NO2",
+      "NOX",
+      "O3",
+      "PM2.5",
+      "SO2"
+    ]
+  },
+  {
+    "county": "Kings, NS",
+    "expectedHours": 437525,
+    "firstReport": "2016-01-08T00:00:00",
+    "id": "kentville",
+    "lastReport": "2026-01-01T00:00:00",
+    "name": "Kentville",
+    "reportedHours": 427797,
+    "series": [
+      "NO",
+      "NO2",
+      "NOX",
+      "O3",
+      "PM2.5"
+    ]
+  },
+  {
+    "county": "Kings, NS",
+    "expectedHours": 438360,
+    "firstReport": "2016-01-01T01:00:00",
+    "id": "aylesford",
+    "lastReport": "2026-01-01T00:00:00",
+    "name": "Aylesford",
+    "reportedHours": 202647,
+    "series": [
+      "NO",
+      "NO2",
+      "NOX",
+      "O3",
+      "PM2.5"
+    ]
+  },
+  {
+    "county": "Pictou, NS",
+    "expectedHours": 613704,
+    "firstReport": "2016-01-01T01:00:00",
+    "id": "pictou",
+    "lastReport": "2026-01-01T00:00:00",
+    "name": "Pictou",
+    "reportedHours": 597978,
+    "series": [
+      "NO",
+      "NO2",
+      "NOX",
+      "O3",
+      "PM2.5",
+      "SO2",
+      "TRS"
+    ]
+  },
+  {
+    "county": "Inverness, NS",
+    "expectedHours": 526032,
+    "firstReport": "2016-01-01T01:00:00",
+    "id": "port-hawkesbury",
+    "lastReport": "2026-01-01T00:00:00",
+    "name": "Port Hawkesbury",
+    "reportedHours": 519156,
+    "series": [
+      "NO",
+      "NO2",
+      "NOX",
+      "O3",
+      "PM2.5",
+      "SO2"
+    ]
+  },
+  {
+    "county": "Cape Breton, NS",
+    "expectedHours": 613704,
+    "firstReport": "2016-01-01T01:00:00",
+    "id": "sydney",
+    "lastReport": "2026-01-01T00:00:00",
+    "name": "Sydney",
+    "reportedHours": 587947,
+    "series": [
+      "CO",
+      "NO",
+      "NO2",
+      "NOX",
+      "O3",
+      "PM2.5",
+      "SO2"
+    ]
+  }
+]

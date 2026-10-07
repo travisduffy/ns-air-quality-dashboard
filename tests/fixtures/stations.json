@@ -1,0 +1,22 @@
+[
+  {
+    "id": "halifax",
+    "name": "Halifax",
+    "county": "Halifax, NS",
+    "firstReport": "2016-01-01T01:00:00",
+    "lastReport": "2017-12-31T23:00:00",
+    "series": ["PM2.5", "O3"],
+    "expectedHours": 35038,
+    "reportedHours": 34310
+  },
+  {
+    "id": "halifax-johnston",
+    "name": "Halifax Johnston",
+    "county": "Halifax, NS",
+    "firstReport": "2018-01-01T00:00:00",
+    "lastReport": "2025-12-31T23:00:00",
+    "series": ["PM2.5"],
+    "expectedHours": 70128,
+    "reportedHours": 66410
+  }
+]
