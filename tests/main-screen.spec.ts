@@ -383,7 +383,7 @@ test('the header says that the data is historical, and nothing says live', async
   await expect(page).toHaveTitle(/historical data, 2016 - 2025/)
   const header = page.locator('.c-title')
   await expect(header).toContainText(
-    'Historical data: hourly readings 2016 - 2025, published by Nova Scotia Open Data, released one checked year at a time.'
+    'Historical hourly readings 2016 - 2025, Nova Scotia Open Data.'
   )
   await expect(page.locator('footer')).toContainText('This screen is not live')
   await expect(page.getByTestId('c-limits-note')).toHaveText(

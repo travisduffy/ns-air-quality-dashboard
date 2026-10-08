@@ -5,7 +5,7 @@ import {
   getSeriesVerdict,
   type Station,
 } from './stations.ts'
-import { count, hoursText, num, shareText } from './format.ts'
+import { count, num, shareText } from './format.ts'
 import type { YearPoint, YearSeries } from './years.ts'
 
 // Room above the limit tick, so that a peak above the limit stays on the bar.
@@ -50,9 +50,9 @@ const getJudgedText = (series: SeriesSummary) => {
     verdict.kind === 'hourly' ? verdict.judgedHours : verdict.judgedDays
   const over = verdict.kind === 'hourly' ? verdict.overHours : verdict.overDays
   if (over === 0) {
-    return `All ${count(judged)} judged ${unit} within the limit.`
+    return `All ${count(judged)} ${unit} within the limit.`
   }
-  return `${count(over)} of ${count(judged)} judged ${unit} over the limit.`
+  return `${count(over)} of ${count(judged)} ${unit} over the limit.`
 }
 
 const getPeakText = (series: SeriesSummary) => {
@@ -62,9 +62,8 @@ const getPeakText = (series: SeriesSummary) => {
   }
 
   const percent = Math.round((verdict.maxValue / verdict.limit.value) * 100)
-  const limit = `${num(verdict.limit.value)} ${series.unit}`
   const peak = `${num(verdict.maxValue)} ${series.unit}`
-  return `Peak ${peak}, ${percent}% of the ${limit} limit.`
+  return `Peak ${peak} (${percent}% of limit)`
 }
 
 const getPointText = (point: YearPoint) => {
@@ -161,9 +160,7 @@ const Facts = ({ series, scaleMax, year }: FactsProps) => {
       <div className="c-strip" aria-hidden="true">
         <span style={{ width: `${series.reportedShare * 100}%` }} />
       </div>
-      <p className="c-fact">
-        {reportedText} of hours reported, {hoursText(series.missing)} missing.
-      </p>
+      <p className="c-fact">{reportedText} of hours reported</p>
       <YearStrip points={series.points} year={year} scaleMax={scaleMax} />
     </>
   )

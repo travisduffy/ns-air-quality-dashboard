@@ -185,8 +185,7 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
         <div className="c-title">
           <h1>{overview.project}</h1>
           <p>
-            Historical data: hourly readings {first} - {last}, published by Nova
-            Scotia Open Data, released one checked year at a time.
+            Historical hourly readings {first} - {last}, Nova Scotia Open Data.
           </p>
         </div>
         <StationSearch overview={overview} onPick={pick} />
@@ -247,14 +246,14 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
           >
             <div className="c-detail-head">
               <button type="button" className="c-close" onClick={close}>
-                ← Back to all stations
+                ← All stations
               </button>
               <h2 id="c-detail-h" tabIndex={-1} ref={headingRef}>
                 {picked.station}
               </h2>
               <p className="c-verdict">
                 <span aria-hidden="true">{VERDICT_MARK[overall]}</span>{' '}
-                <strong>{VERDICT_WORD[overall]}</strong>, all pollutants
+                <strong>{VERDICT_WORD[overall]}</strong>
               </p>
             </div>
             <div className="layout">
@@ -272,12 +271,8 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
             {label} at each station, {year}
           </h2>
           <p className="c-note">
-            Every tile uses the same scale for all years. The bar is the highest
-            value of {year} as a share of the limit, and the tick is the limit.
-            The strip below it is the share of hours that reported; the hatched
-            part is missing. The ten small cells are the yearly peak from{' '}
-            {first} to {last}, and a dashed cell is a year with no readings.
-            Pick a tile or a county for the full readings.
+            Bar: the {year} peak against the limit tick. Cells: the yearly peak,{' '}
+            {first} - {last}. Pick a tile or a county for the full readings.
           </p>
           <p className="c-note" data-testid="c-limits-note">
             Every year is judged against the same current limits.
@@ -313,13 +308,6 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
             <div>
               <dt>Time</dt>
               <dd>{overview.window.timeNote}</dd>
-            </div>
-            <div>
-              <dt>Limits</dt>
-              <dd>
-                Every year is judged against the same current limits, the ones
-                shown on each card.
-              </dd>
             </div>
             {source.corrections.length > 0 && (
               <div>

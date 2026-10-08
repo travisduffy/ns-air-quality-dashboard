@@ -33,11 +33,11 @@ const limitText = (s: SeriesSummary) => {
   }
   const period =
     v.kind === 'hourly'
-      ? '1-hour limit'
+      ? '1-hour'
       : v.statistic === 'daily mean'
-        ? '24-hour limit, on the daily mean'
-        : '8-hour limit, on the daily maximum 8-hour average'
-  return `${num(v.limit.value)} ${v.limit.unit} ${period}`
+        ? '24-hour'
+        : '8-hour'
+  return `${num(v.limit.value)} ${v.limit.unit}, ${period}`
 }
 
 const Verdict = ({ s }: { s: SeriesSummary }) => {
@@ -54,7 +54,7 @@ const Verdict = ({ s }: { s: SeriesSummary }) => {
     const high =
       v.maxValue === null
         ? ''
-        : ` The highest hour was ${num(v.maxValue)} ${s.unit} at ${v.maxAt}.`
+        : ` Highest: ${num(v.maxValue)} ${s.unit} at ${v.maxAt}.`
     return (
       <p
         className={over ? 'verdict over' : 'verdict within'}
@@ -62,8 +62,8 @@ const Verdict = ({ s }: { s: SeriesSummary }) => {
       >
         <strong>{over ? 'Over the limit' : 'Within the limit'}:</strong>{' '}
         {over
-          ? `${count(v.overHours)} of ${count(v.judgedHours)} reported hours were above ${num(v.limit.value)} ${s.unit}.`
-          : `all ${count(v.judgedHours)} reported hours were at or below ${num(v.limit.value)} ${s.unit}.`}
+          ? `${count(v.overHours)} of ${count(v.judgedHours)} hours above ${num(v.limit.value)} ${s.unit}.`
+          : `All ${count(v.judgedHours)} hours at or below ${num(v.limit.value)} ${s.unit}.`}
         {high}
       </p>
     )
@@ -72,11 +72,7 @@ const Verdict = ({ s }: { s: SeriesSummary }) => {
   const high =
     v.maxValue === null
       ? ''
-      : ` The highest day was ${num(v.maxValue)} ${s.unit} on ${v.maxDay}.`
-  const thin =
-    v.insufficientDays > 0
-      ? ` ${count(v.insufficientDays)} of ${count(v.days)} days had too few readings to judge and are left blank.`
-      : ''
+      : ` Highest: ${num(v.maxValue)} ${s.unit} on ${v.maxDay}.`
   return (
     <p
       className={over ? 'verdict over' : 'verdict within'}
@@ -84,10 +80,9 @@ const Verdict = ({ s }: { s: SeriesSummary }) => {
     >
       <strong>{over ? 'Over the limit' : 'Within the limit'}:</strong>{' '}
       {over
-        ? `${count(v.overDays)} of ${count(v.judgedDays)} judged days were above ${num(v.limit.value)} ${s.unit}.`
-        : `all ${count(v.judgedDays)} judged days were at or below ${num(v.limit.value)} ${s.unit}.`}
+        ? `${count(v.overDays)} of ${count(v.judgedDays)} days above ${num(v.limit.value)} ${s.unit}.`
+        : `All ${count(v.judgedDays)} days at or below ${num(v.limit.value)} ${s.unit}.`}
       {high}
-      {thin}
     </p>
   )
 }
@@ -139,20 +134,17 @@ const SeriesCard = (props: {
         </p>
       )}
       <p className="meta" data-gaps>
-        Missing hours: {count(s.missing)} of {count(s.expected)} in{' '}
-        {count(s.gapCount)} gaps.{' '}
-        {longest === null
-          ? 'No gap.'
-          : `Longest gap: ${hoursText(longest.hours)}, ${longest.start} to ${longest.end}.`}
+        Missing hours: {count(s.missing)} of {count(s.expected)}.
+        {longest !== null && ` Longest gap: ${hoursText(longest.hours)}.`}
       </p>
       {s.reported === 0 && (
         <p className="meta" data-testid="no-readings">
-          No readings in {props.year}. Every hour is missing.
+          No readings in {props.year}.
         </p>
       )}
       {s.reported > 0 && r === undefined && v.kind === 'daily' && (
         <>
-          <h4>Daily values ({v.statistic})</h4>
+          <h4>Daily values</h4>
           <ChartSkeleton height={DAILY_HEIGHT} />
           <p className="legend">
             <span className="mk within" aria-hidden="true">
@@ -166,7 +158,7 @@ const SeriesCard = (props: {
             <span className="mk blank" aria-hidden="true">
               ▮
             </span>{' '}
-            too few readings, no value
+            too few readings
           </p>
           <h4>Hourly readings</h4>
           <ChartSkeleton height={110} />
@@ -183,7 +175,7 @@ const SeriesCard = (props: {
         daily !== undefined &&
         v.kind === 'daily' && (
           <>
-            <h4>Daily values ({v.statistic})</h4>
+            <h4>Daily values</h4>
             <DailyChart
               days={daily}
               gaps={r.gaps}
@@ -204,7 +196,7 @@ const SeriesCard = (props: {
               <span className="mk blank" aria-hidden="true">
                 ▮
               </span>{' '}
-              too few readings, no value
+              too few readings
             </p>
             <h4>Hourly readings</h4>
             <HourlyChart
@@ -238,7 +230,7 @@ const SeriesCard = (props: {
           <span className="mk blank" aria-hidden="true">
             ▮
           </span>{' '}
-          strip: each dark mark is a missing hour
+          dark strip: missing hours
         </p>
       )}
     </article>
@@ -366,15 +358,13 @@ export const Health = (props: {
     <section aria-labelledby="health-h" className="health">
       <h2 id="health-h">Station health</h2>
       <p className="meta">
-        Share of hours that reported, over the pollutants that the station
-        reported in the year, and the longest outage of any one pollutant. Tap a
-        row to show that station.
+        Share of hours reported. Tap a row to pick a station.
       </p>
       <table>
         <thead>
           <tr>
             <th scope="col">Station</th>
-            <th scope="col">Hours reported</th>
+            <th scope="col">Share</th>
             <th scope="col">Longest outage</th>
           </tr>
         </thead>
@@ -422,12 +412,12 @@ export const Health = (props: {
         </tbody>
       </table>
       <details>
-        <summary>Numbers per pollutant at {picked.station}</summary>
+        <summary>Per pollutant</summary>
         <table className="per-series">
           <thead>
             <tr>
               <th scope="col">Pollutant</th>
-              <th scope="col">Hours reported</th>
+              <th scope="col">Share</th>
               <th scope="col">Missing</th>
               <th scope="col">Longest outage</th>
             </tr>
@@ -452,9 +442,7 @@ export const Footer = () => (
   <footer>
     <p>
       This screen is not live. It shows historical hourly readings, one checked
-      year at a time, and nothing after the data end. It gives no forecast, no
-      health index, and no value that the source did not publish. A missing hour
-      is shown as missing.
+      year at a time. A missing hour is shown as missing.
     </p>
   </footer>
 )

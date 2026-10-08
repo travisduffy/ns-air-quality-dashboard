@@ -81,11 +81,11 @@
 }
 .county-list {
   list-style: none;
-  margin: 8px 0 0;
+  margin: 12px 0 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
 }
 .county-list .county {
   display: flex;
@@ -126,7 +126,7 @@
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 12px;
+  gap: 6px 16px;
 }
 .legend .key {
   display: inline-flex;

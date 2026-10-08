@@ -28,7 +28,7 @@ h1 {
 }
 h2 {
   font-size: 1.25rem;
-  margin: 0 0 8px;
+  margin: 0 0 12px;
 }
 h3 {
   font-size: 1.05rem;
@@ -36,7 +36,7 @@ h3 {
 }
 h4 {
   font-size: 0.9rem;
-  margin: 10px 0 2px;
+  margin: 14px 0 4px;
   color: var(--muted);
 }
 .unit {
@@ -49,7 +49,7 @@ a {
 }
 dl {
   display: grid;
-  gap: 4px 16px;
+  gap: 8px 24px;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   margin: 8px 0 0;
   font-size: 0.9rem;
@@ -67,7 +67,7 @@ dd {
 }
 .layout {
   display: grid;
-  gap: 16px;
+  gap: 24px;
   margin-top: 16px;
 }
 @media (min-width: 900px) {
@@ -87,8 +87,8 @@ dd {
 .controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 16px;
-  margin-bottom: 8px;
+  gap: 12px 20px;
+  margin-bottom: 16px;
 }
 select,
 button {
@@ -97,14 +97,14 @@ button {
 .card {
   background: #fff;
   border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 10px;
-  margin-bottom: 12px;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
   min-width: 0;
 }
 .verdict {
-  margin: 4px 0;
-  padding: 6px 8px;
+  margin: 8px 0;
+  padding: 8px 12px;
   border-left: 4px solid var(--line);
   background: #f0f3f5;
 }
@@ -115,14 +115,14 @@ button {
   border-color: var(--within);
 }
 .meta {
-  margin: 2px 0;
-  font-size: 0.85rem;
+  margin: 4px 0;
+  font-size: 0.8rem;
   color: var(--muted);
   overflow-wrap: anywhere;
 }
 .legend {
-  margin: 2px 0 0;
-  font-size: 0.8rem;
+  margin: 6px 0 0;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 .mk.within {
@@ -151,10 +151,19 @@ table {
 th,
 td {
   text-align: left;
-  padding: 6px 4px;
+  padding: 8px 6px;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
   overflow-wrap: anywhere;
+}
+.health table:not(.per-series) th:nth-child(2),
+.health td[data-cell='share'] {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.health table:not(.per-series) tbody th[scope='row'] {
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 tbody tr[data-testid] {
   cursor: pointer;
@@ -172,7 +181,7 @@ th button:focus-visible {
   outline: 2px solid #0b4f87;
 }
 details {
-  margin-top: 10px;
+  margin-top: 14px;
 }
 summary {
   cursor: pointer;
@@ -181,8 +190,8 @@ summary {
   margin-top: 6px;
 }
 footer {
-  margin-top: 20px;
-  padding-top: 10px;
+  margin-top: 24px;
+  padding-top: 16px;
   border-top: 1px solid var(--line);
   font-size: 0.85rem;
   color: var(--muted);
