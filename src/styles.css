@@ -201,10 +201,84 @@ footer {
   font-weight: 600;
 }
 .skeleton {
+  display: block;
   border-radius: 4px;
   background: linear-gradient(90deg, #eef2f5 30%, #f8fafb 50%, #eef2f5 70%) 0
     0 / 300% 100%;
   animation: shimmer 1.4s linear infinite;
+}
+/* A skeleton keeps its box from the first frame, and shows after a delay. */
+.skeleton,
+.sk-shell {
+  transition: opacity 150ms ease-out;
+}
+[data-pending] {
+  opacity: 0;
+}
+.c-page:not(.sk-shell) {
+  animation: fade-in 160ms ease-out;
+}
+.sk-line {
+  height: 0.9em;
+}
+.sk-subtitle {
+  width: min(375px, 100%);
+}
+.sk-input {
+  width: 14rem;
+  max-width: 100%;
+  height: 40px;
+  border-radius: 8px;
+}
+.sk-select {
+  min-width: 6rem;
+  height: 44px;
+  border-radius: 8px;
+}
+.sk-pill {
+  width: 58px;
+  height: 40px;
+  border-radius: 999px;
+}
+.sk-heading {
+  width: 70%;
+  height: 26px;
+  margin-bottom: 8px;
+}
+.sk-note {
+  margin: 8px 0 12px;
+}
+.sk-tile {
+  min-height: 297px;
+  border-left-color: var(--line);
+}
+.sk-years {
+  height: 44px;
+  margin-top: auto;
+}
+.sk-health {
+  margin-top: 6px;
+}
+.sk-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+}
+.sk-county {
+  max-width: 100%;
+  height: 36px;
+  border-radius: 18px;
+}
+@media (min-width: 700px) {
+  .sk-tile {
+    min-height: 312px;
+  }
+}
+@media (max-width: 699px) {
+  .sk-input,
+  .sk-select {
+    width: 100%;
+  }
 }
 @keyframes shimmer {
   from {
@@ -227,7 +301,12 @@ footer {
 }
 @media (prefers-reduced-motion: reduce) {
   .skeleton,
-  .chart svg {
+  .chart svg,
+  .c-page:not(.sk-shell) {
     animation: none;
+  }
+  .skeleton,
+  .sk-shell {
+    transition: none;
   }
 }

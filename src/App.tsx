@@ -1,5 +1,6 @@
 import { PROJECT } from '../shared/contract.ts'
 import { Screen } from './screen.tsx'
+import { ShellSkeleton } from './skeleton.tsx'
 import { useDashboardData } from './use-dashboard-data.ts'
 
 export const App = () => {
@@ -13,12 +14,7 @@ export const App = () => {
     )
   }
   if (state.kind === 'loading') {
-    return (
-      <main>
-        <h1>{PROJECT}</h1>
-        <p>Loading…</p>
-      </main>
-    )
+    return <ShellSkeleton />
   }
   return <Screen dashboard={state.dashboard} />
 }

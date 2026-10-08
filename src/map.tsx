@@ -1,4 +1,5 @@
 import { attachCamera } from './camera.ts'
+import { Bone, MAP_ASPECT } from './skeleton.tsx'
 import {
   VERDICT_COLOR,
   VERDICT_WORD,
@@ -7,14 +8,17 @@ import {
 } from './stations.ts'
 import type { YearCounty } from './years.ts'
 import { MapEngine, type PickResult } from '@travisduffy/map-engine'
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
-type Chooser = { county: string; x: number; y: number }
+type Chooser = { county: string; anchor: [number, number] | null }
 type Box = [number, number, number, number]
 
 const MAP_URL = `${import.meta.env.BASE_URL}map.png`
 const SECTORS_URL = `${import.meta.env.BASE_URL}sectors.json`
 const CHOOSER_MARGIN_PX = 8
+
+const clampInside = (start: number, size: number, frame: number) =>
+  Math.max(CHOOSER_MARGIN_PX, Math.min(start, frame - size - CHOOSER_MARGIN_PX))
 
 const getCountyLabel = (county: string) =>
   `${county.replace(/, NS$/, '')} County`
@@ -25,6 +29,20 @@ const getSectorName = (engine: MapEngine, key: string) => {
     throw new Error(`the map holds no sector ${key}`)
   }
   return sector.name
+}
+
+const getCountyAnchor = (
+  engine: MapEngine,
+  county: string
+): [number, number] | null => {
+  const key = engine
+    .getSectorKeys()
+    .find(key => getSectorName(engine, key) === county)
+  if (key === undefined) {
+    return null
+  }
+  const [minX, minY, maxX, maxY] = engine.getBBox(key)
+  return [(minX + maxX) / 2, (minY + maxY) / 2]
 }
 
 const getNovaScotiaBox = (engine: MapEngine) => {
@@ -66,7 +84,7 @@ export const MapView = ({
   const pointer = useRef({ x: 0, y: 0 })
   const [engine, setEngine] = useState<MapEngine | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [aspect, setAspect] = useState<string>()
+  const [aspect, setAspect] = useState<string>(MAP_ASPECT)
   const [styled, setStyled] = useState(false)
   const [hover, setHover] = useState<string | null>(null)
   const [chooser, setChooser] = useState<Chooser | null>(null)
@@ -84,7 +102,7 @@ export const MapView = ({
     byCountyRef.current = byCounty
   })
 
-  const openCounty = (county: string, x: number, y: number) => {
+  const openCounty = (county: string, anchor: [number, number] | null) => {
     const item = byCounty.get(county)
     if (item === undefined) {
       setChooser(null)
@@ -96,7 +114,7 @@ export const MapView = ({
       onPick(item.stations[0])
       return
     }
-    setChooser({ county, x, y })
+    setChooser({ county, anchor })
   }
   const openCountyRef = useRef(openCounty)
 
@@ -120,8 +138,10 @@ export const MapView = ({
           return
         }
         mapEngine.on('sectorClick', (result: PickResult) => {
-          const [x, y] = mapEngine.project(result.pixelX, result.pixelY)
-          openCountyRef.current(result.sectorData.name, x, y)
+          openCountyRef.current(result.sectorData.name, [
+            result.pixelX,
+            result.pixelY,
+          ])
         })
         mapEngine.on('sectorHover', (result: PickResult | null) => {
           const name = result?.sectorData.name
@@ -174,7 +194,9 @@ export const MapView = ({
 
   useEffect(() => {
     if (chooser !== null) {
-      chooserRef.current?.querySelector('button')?.focus()
+      chooserRef.current
+        ?.querySelector('button')
+        ?.focus({ preventScroll: true })
     }
   }, [chooser])
 
@@ -193,15 +215,43 @@ export const MapView = ({
     }
   }
 
-  const getChooserStyle = (at: Chooser): CSSProperties => {
-    const frame = frameRef.current?.getBoundingClientRect()
-    const width = frame?.width ?? 0
-    const height = frame?.height ?? 0
-    return {
-      left: Math.max(CHOOSER_MARGIN_PX, Math.min(at.x, width - 200)),
-      top: Math.max(CHOOSER_MARGIN_PX, Math.min(at.y, height - 110)),
+  // Place the chooser on its anchor on every frame, so that it follows a pan
+  // or a zoom, and flip and shift it by its measured size to stay in the frame.
+  useLayoutEffect(() => {
+    const anchor = chooser?.anchor ?? null
+    const place = () => {
+      const box = chooserRef.current
+      const frame = frameRef.current
+      if (box === null || frame === null) {
+        return
+      }
+      const width = frame.clientWidth
+      const height = frame.clientHeight
+      box.style.maxHeight = `${height - 2 * CHOOSER_MARGIN_PX}px`
+      box.style.maxWidth = `${width - 2 * CHOOSER_MARGIN_PX}px`
+      const [x, y] =
+        anchor === null || engine === null
+          ? [width / 2, height / 2]
+          : engine.project(anchor[0], anchor[1])
+      box.dataset.anchor = `${Math.round(x)},${Math.round(y)}`
+      const left =
+        x + box.offsetWidth + CHOOSER_MARGIN_PX <= width
+          ? x
+          : x - box.offsetWidth
+      const top =
+        y + box.offsetHeight + CHOOSER_MARGIN_PX <= height
+          ? y
+          : y - box.offsetHeight
+      box.style.left = `${clampInside(left, box.offsetWidth, width)}px`
+      box.style.top = `${clampInside(top, box.offsetHeight, height)}px`
     }
-  }
+    if (chooser === null) {
+      return
+    }
+    place()
+    engine?.onFrame(place)
+    return () => engine?.offFrame(place)
+  }, [chooser, engine])
 
   const hovered = hover === null ? undefined : byCounty.get(hover)
   const onHoverRef = useRef(onHover)
@@ -224,6 +274,7 @@ export const MapView = ({
       className="map-view"
       aria-label="Map of the counties"
       data-ready={engine !== null && styled}
+      aria-busy={engine === null && error === null}
     >
       <div
         className="map-frame"
@@ -269,7 +320,6 @@ export const MapView = ({
             role="group"
             aria-label={`Stations in ${getCountyLabel(choosing.county)}`}
             data-testid="map-chooser"
-            style={getChooserStyle(chooser)}
           >
             <strong>{getCountyLabel(choosing.county)}</strong>
             {choosing.stations.map(name => (
@@ -290,6 +340,7 @@ export const MapView = ({
             </button>
           </div>
         )}
+        {engine === null && error === null && <Bone className="sk-fill" />}
         {error !== null && (
           <p className="error">Could not load the map: {error}</p>
         )}
@@ -312,11 +363,11 @@ export const MapView = ({
                 aria-label={`${getCountyLabel(item.county)}, ${names}: ${verdictWord}`}
                 onClick={event => {
                   opener.current = event.currentTarget
-                  const frame = frameRef.current?.getBoundingClientRect()
                   openCounty(
                     item.county,
-                    (frame?.width ?? 0) / 2 - 90,
-                    (frame?.height ?? 0) / 2 - 50
+                    engine === null
+                      ? null
+                      : getCountyAnchor(engine, item.county)
                   )
                 }}
               >

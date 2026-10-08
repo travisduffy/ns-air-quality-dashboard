@@ -7,6 +7,7 @@ import {
   stampMs,
 } from '../shared/time.ts'
 import { num } from './format.ts'
+import { Bone, useDelayed } from './skeleton.tsx'
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 
 const LEFT = 46
@@ -114,6 +115,36 @@ const tickLabel = (t: number, d: Domain) => {
   return (d.t1 - d.t0) / DAY_MS > 120 ? s.slice(0, 7) : s.slice(5, 10)
 }
 
+// A tick label is about 6.6 px for each character at font size 11. Drop a
+// tick whose label would touch the label before it, and keep the last tick.
+const TICK_CHAR_PX = 6.6
+const TICK_GAP_PX = 8
+
+const spaceTicks = (
+  ticks: number[],
+  x: (t: number) => number,
+  d: Domain
+) => {
+  const box = (t: number) => {
+    const w = tickLabel(t, d).length * TICK_CHAR_PX
+    return t === d.t1 ? [x(t) - w, x(t)] : [x(t) - w / 2, x(t) + w / 2]
+  }
+  const fits = (a: number, b: number) => box(a)[1] + TICK_GAP_PX <= box(b)[0]
+  const kept: number[] = []
+  for (const t of ticks) {
+    const prev = kept.at(-1)
+    if (prev === undefined || fits(prev, t)) {
+      kept.push(t)
+    } else if (t === ticks.at(-1)) {
+      while (kept.length > 0 && !fits(kept[kept.length - 1], t)) {
+        kept.pop()
+      }
+      kept.push(t)
+    }
+  }
+  return kept
+}
+
 type FrameProps = {
   width: number
   height: number
@@ -167,7 +198,7 @@ const Frame = (p: FrameProps) => {
           </text>
         </g>
       ))}
-      {xTicks(time).map(t => (
+      {spaceTicks(xTicks(time), x, time).map(t => (
         <text
           key={t}
           x={x(t)}
@@ -438,12 +469,12 @@ export const DailyChart = (p: DailyProps) => {
 }
 
 export const ChartSkeleton = (p: { height?: number }) => {
+  const shown = useDelayed()
   return (
-    <div
-      className="chart skeleton"
+    <Bone
+      className="chart"
       style={{ height: p.height ?? HOURLY_HEIGHT }}
-      aria-hidden="true"
-      data-skeleton
+      pending={!shown}
     />
   )
 }

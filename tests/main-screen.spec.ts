@@ -114,8 +114,12 @@ for (const width of [1440, 390]) {
     const overview = (await response.json()) as Overview
     await checkScreen(page, overview)
 
-    const panel = (await page.locator('.c-panel').boundingBox())!
-    const map = (await page.locator('.c-map').boundingBox())!
+    const [panel, map] = await page.evaluate(() =>
+      ['.c-panel', '.c-map'].map(selector => {
+        const box = document.querySelector(selector)!.getBoundingClientRect()
+        return { x: box.x, y: box.y, width: box.width, height: box.height }
+      })
+    )
     if (width >= 900) {
       expect(panel.x + panel.width).toBeLessThanOrEqual(map.x)
       expect(Math.abs(map.x - width / 2)).toBeLessThanOrEqual(1)
@@ -157,6 +161,7 @@ test('the detail header judges the picked pollutant only', async ({ page }) => {
   await page.goto('./')
   const tile = page.locator('[data-testid="c-tile"][data-station="Aylesford"]')
   const verdicts = new Set<string>()
+  await expect(tile).toBeVisible()
   for (const button of await page.getByTestId('c-pollutant').all()) {
     const code = await button.innerText()
     await button.click()
@@ -176,6 +181,7 @@ test('the detail header judges the picked pollutant only', async ({ page }) => {
 test('the map comes before the tiles on a phone', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('./')
+  await expect(page.getByTestId('c-tile').first()).toBeVisible()
   const map = (await page.locator('.c-map').boundingBox())!
   const tiles = (await page.locator('.c-tiles').boundingBox())!
   expect(map.y + map.height).toBeLessThanOrEqual(tiles.y)
@@ -639,4 +645,120 @@ test('land of New Brunswick on screen takes the water color', async ({
   expect(isWater(rgba, 0)).toBe(true)
   await page.mouse.move(point.x, point.y)
   await expect(page.getByTestId('map-tip')).toHaveCount(0)
+})
+
+const HALIFAX_PIXEL = [1004, 1036]
+
+const getChooserState = (page: Page) =>
+  page.evaluate(() => {
+    const frame = document.querySelector('.map-frame')!.getBoundingClientRect()
+    const chooser = document.querySelector<HTMLElement>(
+      '[data-testid="map-chooser"]'
+    )!
+    const box = chooser.getBoundingClientRect()
+    const [x, y] = (chooser.dataset.anchor ?? '').split(',').map(Number)
+    return {
+      inside:
+        box.left >= frame.left &&
+        box.top >= frame.top &&
+        box.right <= frame.right &&
+        box.bottom <= frame.bottom,
+      reachable:
+        chooser.scrollHeight <= chooser.clientHeight ||
+        getComputedStyle(chooser).overflowY === 'auto',
+      left: box.left,
+      anchor: { x, y },
+    }
+  })
+
+for (const [width, height] of [
+  [1440, 900],
+  [1440, 760],
+  [1280, 720],
+]) {
+  test(`a station pick at ${width} x ${height} keeps the top banner in view`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height })
+    await page.goto('./')
+    await expect(page.locator('.map-view[data-ready="true"]')).toBeVisible()
+    await page
+      .locator('[data-testid="map-county"][data-county="Halifax, NS"]')
+      .click()
+    await page
+      .getByTestId('map-chooser')
+      .getByRole('button', { name: 'Lake Major' })
+      .click()
+    await expect(page.locator('#c-detail-h')).toBeFocused()
+    await page.waitForTimeout(800)
+    const state = await page.evaluate(() => ({
+      pageTop: document.querySelector('.c-page')!.scrollTop,
+      windowTop: window.scrollY,
+      bannerTop: document.querySelector('.c-top')!.getBoundingClientRect().top,
+    }))
+    expect(state).toEqual({ pageTop: 0, windowTop: 0, bannerTop: 0 })
+  })
+}
+
+for (const [width, height] of [
+  [1440, 900],
+  [390, 844],
+]) {
+  test(`the chooser stays inside the map frame at each edge at ${width} px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height })
+    await page.goto('./')
+    await expect(page.locator('.map-view[data-ready="true"]')).toBeVisible()
+    const canvas = (await page.locator('.map-canvas').boundingBox())!
+    const home = getHomePoint(canvas, HALIFAX_PIXEL)
+    for (const edge of [
+      { x: canvas.x + canvas.width - 14, y: home.y },
+      { x: home.x, y: canvas.y + canvas.height - 14 },
+    ]) {
+      await page.reload()
+      await expect(page.locator('.map-view[data-ready="true"]')).toBeVisible()
+      await page.mouse.move(home.x, home.y)
+      await page.mouse.down()
+      await page.mouse.move(edge.x, edge.y, { steps: 8 })
+      await page.mouse.up()
+      await expectCountyAt(page, edge, 'Halifax County')
+      await page.mouse.click(edge.x, edge.y)
+      const chooser = page.getByTestId('map-chooser')
+      await expect(chooser.getByRole('button')).toHaveCount(4)
+      const state = await getChooserState(page)
+      expect(state.inside).toBe(true)
+      expect(state.reachable).toBe(true)
+    }
+  })
+}
+
+test('the chooser follows its anchor while the map pans', async ({ page }) => {
+  const canvas = await openMap(page)
+  const point = getHomePoint(canvas, HALIFAX_PIXEL)
+  await expectCountyAt(page, point, 'Halifax County')
+  await page.mouse.click(point.x, point.y)
+  await expect(page.getByTestId('map-chooser')).toBeVisible()
+  const before = await getChooserState(page)
+  expect(Math.abs(before.anchor.x - (point.x - canvas.x))).toBeLessThanOrEqual(
+    2
+  )
+  expect(Math.abs(before.anchor.y - (point.y - canvas.y))).toBeLessThanOrEqual(
+    2
+  )
+  const start = { x: canvas.x + 10, y: canvas.y + canvas.height - 10 }
+  await page.mouse.move(start.x, start.y)
+  await page.mouse.down()
+  await page.mouse.move(start.x + 60, start.y - 40, { steps: 8 })
+  await page.mouse.up()
+  await expect(page.getByTestId('map-chooser')).toBeVisible()
+  await expect
+    .poll(async () =>
+      Math.abs((await getChooserState(page)).left - before.left - 60)
+    )
+    .toBeLessThanOrEqual(1)
+  const after = await getChooserState(page)
+  expect(Math.abs(after.anchor.x - before.anchor.x - 60)).toBeLessThanOrEqual(1)
+  expect(Math.abs(after.anchor.y - before.anchor.y + 40)).toBeLessThanOrEqual(1)
+  expect(after.inside).toBe(true)
 })

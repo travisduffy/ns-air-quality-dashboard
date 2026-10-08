@@ -1,6 +1,7 @@
 import './map.css'
 import { Footer, Health, Readings } from './panels.tsx'
 import './screen.css'
+import { MapSkeleton } from './skeleton.tsx'
 import { VERDICT_MARK, VERDICT_WORD } from './stations.ts'
 import { Tile, getScaleMax } from './tile.tsx'
 import type { DashboardData } from './use-dashboard-data.ts'
@@ -63,6 +64,20 @@ const StationSearch = ({ overview, onPick }: StationSearchProps) => {
   )
 }
 
+// Scroll the one container that holds the detail, and no ancestor of it:
+// scrollIntoView also scrolls the page, which cuts off the top banner. The
+// detail is the first child of the panel, and it rises 8 px as it enters, so
+// the target is the content top of the panel and not the box of the detail.
+const revealDetail = (panel: HTMLElement, behavior: ScrollBehavior) => {
+  const style = getComputedStyle(panel)
+  if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+    panel.scrollTo({ top: 0, behavior })
+    return
+  }
+  const top = panel.getBoundingClientRect().top + parseFloat(style.paddingTop)
+  window.scrollTo({ top: window.scrollY + top, behavior })
+}
+
 export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
   const { overview, year, setYear, stations, station, setStation } = dashboard
   const pollutants = overview.pollutants
@@ -73,7 +88,7 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
   )
   const [open, setOpen] = useState(false)
   const [hot, setHot] = useState<string[]>([])
-  const detailRef = useRef<HTMLElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const trigger = useRef<HTMLElement | null>(null)
 
@@ -107,7 +122,9 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
 
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
     const behavior = reducedMotion ? 'auto' : 'smooth'
-    detailRef.current?.scrollIntoView({ behavior, block: 'start' })
+    if (panelRef.current !== null) {
+      revealDetail(panelRef.current, behavior)
+    }
     headingRef.current?.focus({ preventScroll: true })
   }, [open])
 
@@ -192,12 +209,11 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
         </div>
       </header>
 
-      <div className="c-panel">
+      <div className="c-panel" ref={panelRef}>
         {open && picked !== undefined && verdict !== null ? (
           <section
             id="c-detail"
             className="c-detail"
-            ref={detailRef}
             aria-labelledby="c-detail-h"
             data-testid="c-detail"
           >
@@ -305,11 +321,7 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
 
       <div className="c-map">
         <Suspense
-          fallback={
-            <div className="map-view">
-              <div className="map-frame" />
-            </div>
-          }
+          fallback={<MapSkeleton />}
         >
           <MapView
             counties={counties}
