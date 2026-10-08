@@ -1,6 +1,6 @@
 # Nova Scotia Air Quality Dashboard
 
-A dashboard of Nova Scotia broken down by each county by its air quality. It compares ten years of hourly readings, 2016 - 2025, from the provincial monitoring stations with official air quality limits.
+A dashboard of Nova Scotia broken down by each county by its air quality. It compares sixteen years of hourly readings, 2010 - 2025, from the provincial monitoring stations with official air quality limits.
 
 ## Why
 

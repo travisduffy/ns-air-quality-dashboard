@@ -76,6 +76,9 @@ export const worstVerdict = (verdicts: VerdictState[]) =>
     'absent'
   )
 
+export const judgedVerdict = (verdict: VerdictState, reported: number) =>
+  verdict === 'none' && reported === 0 ? 'nodata' : verdict
+
 export type Judgement = {
   verdict: VerdictState
   over: number
@@ -138,6 +141,20 @@ export type CountyOverview = {
   verdicts: Omit<YearVerdicts, 'verdict'>[]
 }
 
+export type Handover = {
+  name: string
+  oldSite: string
+  newSite: string
+  firstDay: string
+  reason: { text: string; source: string } | null
+}
+
+export const handoverYear = (handover: Handover) =>
+  Number(handover.firstDay.slice(0, 4))
+
+export const handoverSite = (handover: Handover, year: number) =>
+  year >= handoverYear(handover) ? handover.newSite : handover.oldSite
+
 export type Overview = {
   project: string
   source: {
@@ -153,6 +170,7 @@ export type Overview = {
   pollutants: { code: string; label: string }[]
   stations: StationOverview[]
   counties: CountyOverview[]
+  handovers: Handover[]
 }
 
 export type SeriesReadings = {
@@ -180,3 +198,26 @@ export const readingsKey = (station: string, year: number) =>
 
 export const readingsPath = (station: string, year: number) =>
   `readings/${station}/${year}.json`
+
+export type FabricStatistic =
+  'daily mean' | 'daily maximum 8-hour average' | 'daily maximum hourly value'
+
+export type FabricRow = {
+  year: number
+  values: (number | null)[]
+  overDays: number[]
+}
+
+export type StationFabric = {
+  station: string
+  pollutant: string
+  label: string
+  unit: string
+  statistic: FabricStatistic
+  limit: Limit | null
+  scale: { max: number }
+  rows: FabricRow[]
+}
+
+export const fabricPath = (station: string, pollutant: string) =>
+  `fabric/${station}/${pollutant}.json`

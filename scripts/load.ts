@@ -55,6 +55,13 @@ export const STATION_COUNTY: Record<string, string> = {
   Aylesford: 'Kings, NS',
 }
 
+// Stations with a dataset that the dashboard does not show. Sable Island
+// closed in 2015 and has no tile or county, so its rows stay out.
+export const OMITTED_STATIONS = ['Sable Island']
+
+export const isOmitted = (name: string | null | undefined) =>
+  OMITTED_STATIONS.some(station => (name ?? '').includes(station))
+
 const readSectors = (root: string) => {
   const sectors: Record<string, { name: string }> = JSON.parse(
     readFileSync(join(root, 'public', 'sectors.json'), 'utf8')
@@ -267,6 +274,8 @@ export const loadData = (root: string): LoadedData => {
         `dataset ${id}: ${f.file} has ${rows.length} rows, the record says ${f.rows}`
       )
     }
+
+    if (isOmitted(f.name)) continue
 
     for (const row of rows) {
       const where = `dataset ${id}`

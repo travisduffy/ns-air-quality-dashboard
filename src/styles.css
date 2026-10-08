@@ -184,7 +184,42 @@ details {
   margin-top: 14px;
 }
 summary {
+  min-height: 24px;
   cursor: pointer;
+}
+@media (max-width: 699px) {
+  /* A third column leaves the outage text 140 px, and a timestamp breaks at
+     each hyphen. The outage gets a full row under the station and its share. */
+  .health table:not(.per-series) thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .health table:not(.per-series) tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    column-gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .health table:not(.per-series) tbody th,
+  .health table:not(.per-series) tbody td {
+    padding: 0 6px;
+    border-bottom: 0;
+  }
+  .health td[data-cell='outage'] {
+    grid-column: 1 / -1;
+    margin-top: 4px;
+    overflow-wrap: break-word;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .health td[data-cell='outage']::before {
+    content: 'Longest outage: ';
+  }
 }
 .per-series {
   margin-top: 6px;
@@ -224,12 +259,6 @@ footer {
 .sk-subtitle {
   width: min(375px, 100%);
 }
-.sk-input {
-  width: 14rem;
-  max-width: 100%;
-  height: 40px;
-  border-radius: 8px;
-}
 .sk-select {
   min-width: 6rem;
   height: 44px;
@@ -264,18 +293,12 @@ footer {
   inset: 0;
   border-radius: 0;
 }
-.sk-county {
-  max-width: 100%;
-  height: 36px;
-  border-radius: 18px;
-}
 @media (min-width: 700px) {
   .sk-tile {
     min-height: 312px;
   }
 }
 @media (max-width: 699px) {
-  .sk-input,
   .sk-select {
     width: 100%;
   }

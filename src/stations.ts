@@ -1,4 +1,10 @@
-import type { VerdictState } from '../shared/contract.ts'
+import {
+  handoverSite,
+  handoverYear,
+  type Handover,
+  type Overview,
+  type VerdictState,
+} from '../shared/contract.ts'
 import type { YearStation } from './years.ts'
 
 export type Station = YearStation
@@ -41,3 +47,19 @@ export const getCountyColor = (
   }
   return verdict === undefined ? VERDICT_COLOR.idle : VERDICT_COLOR[verdict]
 }
+
+export const getHandover = (overview: Overview, station: string) =>
+  overview.handovers.find(h => h.name === station) ?? null
+
+export const getSiteName = (handover: Handover, site: string) =>
+  site === handover.name
+    ? 'earlier'
+    : site.startsWith(`${handover.name} `)
+      ? site.slice(handover.name.length + 1)
+      : site
+
+export const getYearSite = (handover: Handover, year: number) =>
+  getSiteName(handover, handoverSite(handover, year))
+
+export const getSinceText = (handover: Handover) =>
+  `${getSiteName(handover, handover.newSite)} site since ${handoverYear(handover)}`

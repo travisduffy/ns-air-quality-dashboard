@@ -10,7 +10,6 @@ export const MAP_ASPECT = '1689 / 1360'
 
 const TILES = 8
 const POLLUTANTS = 8
-const COUNTY_WIDTHS = [248, 365, 170, 260, 220]
 
 export const useDelayed = (ms = SKELETON_DELAY) => {
   const [shown, setShown] = useState(false)
@@ -56,13 +55,6 @@ export const MapSkeleton = () => (
     <div className="map-frame" style={{ aspectRatio: MAP_ASPECT }}>
       <Bone className="sk-fill" />
     </div>
-    <ul className="county-list" aria-hidden="true">
-      {COUNTY_WIDTHS.map((width, i) => (
-        <li key={i}>
-          <Bone className="sk-county" style={{ width }} />
-        </li>
-      ))}
-    </ul>
     <p className="legend" aria-hidden="true">
       <Bone className="sk-line" style={{ width: 'min(420px, 100%)' }} />
       <Bone className="sk-line" style={{ width: 200 }} />
@@ -88,12 +80,6 @@ export const ShellSkeleton = () => {
           <p aria-hidden="true">
             <Bone className="sk-line sk-subtitle" />
           </p>
-        </div>
-        <div className="c-search" aria-hidden="true">
-          {/* A div, because the search label hides each direct span. */}
-          <div>
-            <Bone className="sk-input" />
-          </div>
         </div>
         <div className="c-year" aria-hidden="true">
           <span>Year</span>

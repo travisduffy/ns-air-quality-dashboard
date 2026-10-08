@@ -1,4 +1,5 @@
-import { attachCamera } from './camera.ts'
+import { attachBorders } from './borders.ts'
+import { lockCamera } from './camera.ts'
 import { Bone, MAP_ASPECT } from './skeleton.tsx'
 import {
   VERDICT_COLOR,
@@ -31,20 +32,6 @@ const getSectorName = (engine: MapEngine, key: string) => {
   return sector.name
 }
 
-const getCountyAnchor = (
-  engine: MapEngine,
-  county: string
-): [number, number] | null => {
-  const key = engine
-    .getSectorKeys()
-    .find(key => getSectorName(engine, key) === county)
-  if (key === undefined) {
-    return null
-  }
-  const [minX, minY, maxX, maxY] = engine.getBBox(key)
-  return [(minX + maxX) / 2, (minY + maxY) / 2]
-}
-
 const getNovaScotiaBox = (engine: MapEngine) => {
   const box: Box = [Infinity, Infinity, -Infinity, -Infinity]
   for (const key of engine.getSectorKeys()) {
@@ -65,23 +52,19 @@ const getNovaScotiaBox = (engine: MapEngine) => {
 
 type MapViewProps = {
   counties: YearCounty[]
-  station: string | null
   onPick: (station: string) => void
   onHover: (stations: string[]) => void
 }
 
-export const MapView = ({
-  counties,
-  station,
-  onPick,
-  onHover,
-}: MapViewProps) => {
+export const MapView = ({ counties, onPick, onHover }: MapViewProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const bordersRef = useRef<HTMLCanvasElement>(null)
   const frameRef = useRef<HTMLDivElement>(null)
   const tipRef = useRef<HTMLDivElement>(null)
   const chooserRef = useRef<HTMLDivElement>(null)
-  const opener = useRef<HTMLElement | null>(null)
   const pointer = useRef({ x: 0, y: 0 })
+  const lastHover = useRef<string | null>(null)
+  const outside = useRef(false)
   const [engine, setEngine] = useState<MapEngine | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [aspect, setAspect] = useState<string>(MAP_ASPECT)
@@ -124,16 +107,18 @@ export const MapView = ({
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (canvas === null) {
+    const borders = bordersRef.current
+    if (canvas === null || borders === null) {
       return
     }
     const mapEngine = new MapEngine()
     let alive = true
     let disposeCamera = () => {}
+    let disposeBorders = () => {}
     mapEngine.setTickRate(60)
     mapEngine
       .loadMap({ bitmapUrl: MAP_URL, definitionUrl: SECTORS_URL, canvas })
-      .then(() => {
+      .then(async () => {
         if (!alive) {
           return
         }
@@ -147,13 +132,25 @@ export const MapView = ({
           const name = result?.sectorData.name
           const live = name !== undefined && byCountyRef.current.has(name)
           canvas.dataset.live = String(live)
-          setHover(live ? name : null)
+          lastHover.current = live ? name : null
+          setHover(lastHover.current)
         })
 
         const box = getNovaScotiaBox(mapEngine)
         const [minX, minY, maxX, maxY] = box
         setAspect(`${maxX + 1 - minX} / ${maxY + 1 - minY}`)
-        disposeCamera = attachCamera(mapEngine, canvas, box)
+        disposeCamera = lockCamera(mapEngine, canvas, box)
+        disposeBorders = await attachBorders(
+          mapEngine,
+          borders,
+          mapEngine
+            .getSectorKeys()
+            .filter(key => isNovaScotia(getSectorName(mapEngine, key)))
+        )
+        if (!alive) {
+          disposeBorders()
+          return
+        }
         setEngine(mapEngine)
       })
       .catch((reason: unknown) => {
@@ -165,6 +162,7 @@ export const MapView = ({
     return () => {
       alive = false
       disposeCamera()
+      disposeBorders()
       setEngine(null)
       setStyled(false)
       mapEngine.destroy()
@@ -200,23 +198,20 @@ export const MapView = ({
     }
   }, [chooser])
 
-  const closeChooser = () => {
-    setChooser(null)
-    if (opener.current?.isConnected) {
-      opener.current.focus()
-    }
-  }
+  const closeChooser = () => setChooser(null)
 
   const moveTip = (x: number, y: number) => {
     pointer.current = { x, y }
+    if (outside.current) {
+      outside.current = false
+      setHover(lastHover.current)
+    }
     const tip = tipRef.current
     if (tip !== null) {
       tip.style.transform = `translate(${x}px, ${y}px)`
     }
   }
 
-  // Place the chooser on its anchor on every frame, so that it follows a pan
-  // or a zoom, and flip and shift it by its measured size to stay in the frame.
   useLayoutEffect(() => {
     const anchor = chooser?.anchor ?? null
     const place = () => {
@@ -260,13 +255,11 @@ export const MapView = ({
     onHoverRef.current = onHover
   })
 
-  const [focused, setFocused] = useState<string | null>(null)
-  const hotCounty = hover ?? focused
   useEffect(() => {
     onHoverRef.current(
-      hotCounty === null ? [] : (byCounty.get(hotCounty)?.stations ?? [])
+      hover === null ? [] : (byCounty.get(hover)?.stations ?? [])
     )
-  }, [hotCounty, byCounty])
+  }, [hover, byCounty])
   const choosing = chooser === null ? undefined : byCounty.get(chooser.county)
 
   return (
@@ -285,11 +278,15 @@ export const MapView = ({
           const box = event.currentTarget.getBoundingClientRect()
           moveTip(event.clientX - box.left, event.clientY - box.top)
         }}
-        onPointerLeave={() => setHover(null)}
+        onPointerLeave={() => {
+          outside.current = true
+          setHover(null)
+        }}
         onKeyDown={event => {
           if (event.key === 'Escape' && chooser !== null) {
             event.stopPropagation()
             closeChooser()
+            canvasRef.current?.focus({ preventScroll: true })
           }
         }}
       >
@@ -297,9 +294,10 @@ export const MapView = ({
           ref={canvasRef}
           className="map-canvas"
           role="img"
-          tabIndex={0}
-          aria-label="Map of Nova Scotia. The list below the map holds each county with a station."
+          tabIndex={-1}
+          aria-label="Map of Nova Scotia. Each station tile also opens its county."
         />
+        <canvas ref={bordersRef} className="map-borders" aria-hidden="true" />
         {hovered !== undefined && chooser === null && (
           <div
             className="map-tip"
@@ -345,46 +343,6 @@ export const MapView = ({
           <p className="error">Could not load the map: {error}</p>
         )}
       </div>
-      <ul className="county-list" aria-label="Counties with a station">
-        {counties.map(item => {
-          const picked = item.stations.includes(station ?? '')
-          const names = item.stations.join(', ')
-          const verdictWord = VERDICT_WORD[item.verdict].toLowerCase()
-          return (
-            <li key={item.county}>
-              <button
-                type="button"
-                className={`county ${item.verdict}${picked ? ' picked' : ''}`}
-                data-testid="map-county"
-                data-county={item.county}
-                aria-pressed={picked}
-                onFocus={() => setFocused(item.county)}
-                onBlur={() => setFocused(null)}
-                aria-label={`${getCountyLabel(item.county)}, ${names}: ${verdictWord}`}
-                onClick={event => {
-                  opener.current = event.currentTarget
-                  openCounty(
-                    item.county,
-                    engine === null
-                      ? null
-                      : getCountyAnchor(engine, item.county)
-                  )
-                }}
-              >
-                <span
-                  className="swatch"
-                  aria-hidden="true"
-                  style={{ background: VERDICT_COLOR[item.verdict] }}
-                />
-                <span className="county-name">
-                  {getCountyLabel(item.county)}
-                </span>
-                <span className="county-stations">{names}</span>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
       <p className="legend">
         {(['over', 'within', 'none', 'nodata', 'absent'] as const).map(
           verdict => (

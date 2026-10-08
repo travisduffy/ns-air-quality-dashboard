@@ -1,4 +1,9 @@
-import type { Outage, SeriesReadings } from '../shared/contract.ts'
+import {
+  handoverYear,
+  type Handover,
+  type Outage,
+  type SeriesReadings,
+} from '../shared/contract.ts'
 import {
   HOUR_MS,
   monthStamps,
@@ -12,9 +17,15 @@ import {
   DailyChart,
   HourlyChart,
 } from './charts.tsx'
+import { Fabric } from './fabric.tsx'
 import { count, hoursText, num, shareText } from './format.ts'
 import type { DashboardData } from './use-dashboard-data.ts'
-import { VERDICT_WORD } from './stations.ts'
+import {
+  VERDICT_WORD,
+  getHandover,
+  getSiteName,
+  getYearSite,
+} from './stations.ts'
 import type { YearSeries, YearStation } from './years.ts'
 import { useMemo } from 'react'
 
@@ -81,8 +92,39 @@ const Verdict = ({ s }: { s: YearSeries }) => {
   )
 }
 
+export const HandoverNote = (props: {
+  handover: Handover
+  years: number[]
+}) => {
+  const { handover, years } = props
+  const since = handoverYear(handover)
+  const before = years.filter(y => y < since)
+  const after = years.filter(y => y >= since)
+  const span = (list: number[]) =>
+    list.length === 1
+      ? `${list[0]}`
+      : `${list[0]}\u2013${list[list.length - 1]}`
+  return (
+    <aside className="c-handover-note" data-testid="c-handover-note">
+      <p>
+        <strong>Two sites report as {handover.name}.</strong>{' '}
+        {before.length > 0 && `${span(before)} come from the earlier site, `}
+        {after.length > 0 &&
+          `${span(after)} from the ${getSiteName(handover, handover.newSite)} site. `}
+        Each year shows the figures of the site that measured it.
+      </p>
+      {handover.reason !== null && (
+        <p>
+          {handover.reason.text} Source: {handover.reason.source}.
+        </p>
+      )}
+    </aside>
+  )
+}
+
 const SeriesCard = (props: {
   station: string
+  site: string | null
   summary: YearSeries
   readings: SeriesReadings | undefined
   start: string | undefined
@@ -107,7 +149,9 @@ const SeriesCard = (props: {
   const lo = inRange.length ? Math.min(...inRange) : null
   const hi = inRange.length ? Math.max(...inRange) : null
   const numbers = `${count(inRange.length)} readings${lo === null ? '' : `, lowest ${num(lo as number)}, highest ${num(hi as number)}`}, ${count(s.missing)} missing hours in ${props.year}${limit === null ? ', no official limit' : `, limit ${num(limit)} ${s.unit}`}`
-  const hourlyLabel = `Hourly ${s.label} at ${props.station} in ${s.unit}, ${span}: ${numbers}. A dark strip below the chart marks each missing hour.`
+  const place =
+    props.site === null ? props.station : `${props.station}, ${props.site} site`
+  const hourlyLabel = `Hourly ${s.label} at ${place} in ${s.unit}, ${span}: ${numbers}. A dark strip below the chart marks each missing hour.`
   const daily = r?.daily
   const longest = s.longestOutage
   return (
@@ -115,6 +159,11 @@ const SeriesCard = (props: {
       <h3>
         {s.label} <span className="unit">({s.unit})</span>
       </h3>
+      {props.site !== null && (
+        <p className="meta c-site" data-testid="c-site">
+          Measured at the {props.site} site.
+        </p>
+      )}
       <Verdict s={s} />
       {lt !== null && v.kind !== 'none' && (
         <p className="meta">
@@ -174,7 +223,7 @@ const SeriesCard = (props: {
               limit={v.limit.value}
               limitLabel={limitLabel}
               domain={props.domain}
-              label={`Daily ${v.statistic} of ${s.label} at ${props.station} in ${s.unit}, ${span}: ${count(v.judgedDays)} judged days, ${count(v.overDays)} over the limit of ${num(v.limit.value)}, ${count(v.insufficientDays)} days with too few readings and no value. A dark strip marks each missing hour.`}
+              label={`Daily ${v.statistic} of ${s.label} at ${place} in ${s.unit}, ${span}: ${count(v.judgedDays)} judged days, ${count(v.overDays)} over the limit of ${num(v.limit.value)}, ${count(v.insufficientDays)} days with too few readings and no value. A dark strip marks each missing hour.`}
             />
             <p className="legend">
               <span className="mk within" aria-hidden="true">
@@ -229,9 +278,38 @@ const SeriesCard = (props: {
   )
 }
 
+type MissingProps = {
+  station: string
+  label: string
+  measured: YearSeries[]
+  onPollutant: (code: string) => void
+}
+
+const Missing = ({ station, label, measured, onPollutant }: MissingProps) => (
+  <div className="c-missing" data-testid="c-missing">
+    <p>
+      {station} does not measure {label}. It measures:
+    </p>
+    <ul>
+      {measured.map(s => (
+        <li key={s.pollutant}>
+          <button
+            type="button"
+            className="c-link"
+            onClick={() => onPollutant(s.pollutant)}
+          >
+            {s.pollutant}, {s.label}
+          </button>
+        </li>
+      ))}
+    </ul>
+  </div>
+)
+
 export const Readings = (props: {
   dashboard: DashboardData
-  pollutant: string
+  pollutant: string | null
+  onPollutant: (code: string) => void
 }) => {
   const {
     overview,
@@ -261,15 +339,33 @@ export const Readings = (props: {
   if (picked === undefined) {
     throw new Error(`the overview holds no station ${station}`)
   }
-  const rank = (s: YearSeries) =>
-    s.pollutant === props.pollutant ? 0 : s.verdict.kind === 'none' ? 2 : 1
-  const ordered = [...picked.series].sort((x, y) => rank(x) - rank(y))
+  const handover = getHandover(overview, picked.station)
+  const site = handover === null ? null : getYearSite(handover, year)
+  const rank = (s: YearSeries) => (s.verdict.kind === 'none' ? 1 : 0)
+  const shown =
+    props.pollutant === null
+      ? picked.series
+      : picked.series.filter(s => s.pollutant === props.pollutant)
+  const ordered = [...shown].sort((x, y) => rank(x) - rank(y))
+  const label =
+    overview.pollutants.find(p => p.code === props.pollutant)?.label ?? ''
   return (
     <section
       aria-labelledby="readings-h"
       className="readings"
       aria-busy={data === undefined && failed === null}
     >
+      {props.pollutant !== null && shown.length > 0 && (
+        <Fabric
+          station={picked.station}
+          pollutant={props.pollutant}
+          label={label}
+          years={overview.years}
+          year={year}
+          handover={handover}
+          onYear={setYear}
+        />
+      )}
       <h2 id="readings-h">Readings, {year}</h2>
       <div className="controls">
         <label>
@@ -317,6 +413,14 @@ export const Readings = (props: {
       {failed !== null && (
         <p className="error">Could not load the readings: {failed}</p>
       )}
+      {props.pollutant !== null && shown.length === 0 && (
+        <Missing
+          station={picked.station}
+          label={label}
+          measured={picked.series}
+          onPollutant={props.onPollutant}
+        />
+      )}
       {failed === null &&
         ordered.map(s => {
           const r = data?.series.find(x => x.pollutant === s.pollutant)
@@ -326,6 +430,7 @@ export const Readings = (props: {
             <SeriesCard
               key={s.pollutant}
               station={picked.station}
+              site={site}
               summary={s}
               readings={r}
               start={data?.start}

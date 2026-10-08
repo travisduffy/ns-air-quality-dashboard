@@ -219,7 +219,7 @@ test('the real files load, with the licence, the limits, and the data end from t
   assert.match(d.licence.name, /Open Government Licence/)
   assert.equal(d.limits.get('SO2')!.limit.value, 343.5)
   assert.equal(d.minCompleteHours, 18)
-  assert.equal(d.since, '2016-01-01T01:00:00')
+  assert.equal(d.since, '2010-01-01T01:00:00')
   assert.equal(msStamp(d.endMs), '2026-01-01T00:00:00')
   assert.equal(d.corrections.length, 5)
 })

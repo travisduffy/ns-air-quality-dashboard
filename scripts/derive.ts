@@ -449,7 +449,7 @@ export const judge = (
   }
 }
 
-const getCounties = (
+export const getCounties = (
   stations: Overview['stations'],
   years: number[],
   pollutants: string[]
@@ -661,6 +661,7 @@ export const derive = (
     pollutants: pollutants.map(code => ({ code, label: pollutantLabel(code) })),
     stations,
     counties: getCounties(stations, years, pollutants),
+    handovers: [],
   }
   return { overview, readings }
 }

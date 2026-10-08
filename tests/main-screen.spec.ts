@@ -1,5 +1,21 @@
-import { getHomeScale } from '../src/camera.ts'
-import { VERDICT_MARK, VERDICT_WORD } from '../src/stations.ts'
+import {
+  COUNTY_PIXELS,
+  type Box,
+  type Point,
+  expectCountyAt,
+  getColorAt,
+  getHomePoint,
+  isColor,
+  openMap,
+  readPixels,
+  toHex,
+} from './map-points.ts'
+import {
+  SEA_COLOR,
+  VERDICT_COLOR,
+  VERDICT_MARK,
+  VERDICT_WORD,
+} from '../src/stations.ts'
 import { expect, test, type Page } from '@playwright/test'
 
 type Outage = { hours: number; start: string; end: string; pollutant?: string }
@@ -136,6 +152,27 @@ for (const width of [1440, 390]) {
   })
 }
 
+test('the station picker of the detail view lists each station once, with Halifax once and no Halifax Johnston', async ({
+  page,
+  request,
+}) => {
+  const overview = (await (
+    await request.get('overview.json')
+  ).json()) as Overview
+  await page.goto('./')
+  await openStation(page, 'Halifax')
+  const options = await page
+    .getByTestId('station-picker')
+    .locator('option')
+    .allTextContents()
+  const expected = overview.stations.map(s => s.station).sort()
+  expect(expected.length).toBeGreaterThan(1)
+  expect([...options].sort()).toEqual(expected)
+  expect(new Set(options).size).toBe(options.length)
+  expect(options.filter(name => name === 'Halifax')).toHaveLength(1)
+  expect(options.filter(name => name.includes('Johnston'))).toHaveLength(0)
+})
+
 test('the detail view opens on the picked pollutant', async ({ page }) => {
   await page.goto('./')
   await openStation(page, 'Aylesford')
@@ -188,40 +225,58 @@ test('the map comes before the tiles on a phone', async ({ page }) => {
   expect(map.y).toBeLessThan(844)
 })
 
-test('the map has no pins, and a county with one station opens it', async ({
+test('the map has no pins and no county list, and a tap on a county with one station opens it', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 1440, height: 900 })
-  await page.goto('./')
-  await expect(page.locator('.map-view[data-ready="true"]')).toBeVisible()
+  const canvas = await openMap(page)
   await expect(page.locator('.map-marker')).toHaveCount(0)
-  const counties = page.getByTestId('map-county')
-  await expect(counties).toHaveCount(5)
-  await counties.filter({ hasText: 'Pictou' }).click()
+  await expect(page.locator('.county-list')).toHaveCount(0)
+  await expect(page.getByTestId('map-county')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /County/ })).toHaveCount(0)
+  const pictou = getHomePoint(canvas, COUNTY_PIXELS['Pictou, NS'])
+  await expectCountyAt(page, pictou, 'Pictou County')
+  await page.mouse.click(pictou.x, pictou.y)
   await expect(page.getByTestId('c-detail')).toBeVisible()
   await expect(page.locator('#c-detail-h')).toHaveText('Pictou')
 })
 
-test('a county of two stations opens a chooser by keyboard', async ({
+test('a tap on a county of two stations opens a chooser, and Escape closes it', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 1440, height: 900 })
-  await page.goto('./')
-  await expect(page.locator('.map-view[data-ready="true"]')).toBeVisible()
-  const kings = page.locator(
-    '[data-testid="map-county"][data-county="Kings, NS"]'
-  )
-  await kings.focus()
-  await page.keyboard.press('Enter')
+  const canvas = await openMap(page)
+  const kings = getHomePoint(canvas, COUNTY_PIXELS['Kings, NS'])
+  await page.mouse.click(kings.x, kings.y)
   const chooser = page.getByTestId('map-chooser')
   await expect(chooser.getByRole('button', { name: 'Kentville' })).toBeVisible()
   await expect(chooser.getByRole('button', { name: 'Aylesford' })).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(chooser).toHaveCount(0)
-  await expect(kings).toBeFocused()
-  await page.keyboard.press('Enter')
+  await page.mouse.click(kings.x, kings.y)
   await chooser.getByRole('button', { name: 'Kentville' }).click()
   await expect(page.locator('#c-detail-h')).toHaveText('Kentville')
+})
+
+test('the tip of a county shows again when the pointer comes back onto it', async ({
+  page,
+}) => {
+  const canvas = await openMap(page)
+  const pictou = getHomePoint(canvas, PICTOU_PIXEL)
+  await expectCountyAt(page, pictou, 'Pictou County')
+  await page.mouse.move(canvas.x + canvas.width / 2, canvas.y - 20)
+  await expect(page.getByTestId('map-tip')).toHaveCount(0)
+  await expectCountyAt(page, pictou, 'Pictou County')
+})
+
+test('Escape on the county chooser gives the focus to the map', async ({
+  page,
+}) => {
+  const canvas = await openMap(page)
+  const kings = getHomePoint(canvas, COUNTY_PIXELS['Kings, NS'])
+  await page.mouse.click(kings.x, kings.y)
+  await expect(page.getByTestId('map-chooser')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('map-chooser')).toHaveCount(0)
+  await expect(page.locator('canvas.map-canvas')).toBeFocused()
 })
 
 test('a failed load of the map code leaves the tiles up', async ({ page }) => {
@@ -230,7 +285,7 @@ test('a failed load of the map code leaves the tiles up', async ({ page }) => {
   await expect(page.locator('.map-frame .error')).toContainText(
     'Could not load the map'
   )
-  await expect(page.getByTestId('c-tile')).toHaveCount(8)
+  await expect(page.getByTestId('c-tile')).toHaveCount(7)
 })
 
 const watchShifts = (page: Page) =>
@@ -311,7 +366,7 @@ for (const width of [1440, 390]) {
   }) => {
     await page.setViewportSize({ width, height: 900 })
     await page.goto('./')
-    await openStation(page, 'Halifax Johnston')
+    await openStation(page, 'Sydney')
     await waitForSettled(page)
     await page.route(READINGS_ROUTE, async route => {
       await new Promise(resolve => setTimeout(resolve, 400))
@@ -323,10 +378,10 @@ for (const width of [1440, 390]) {
     const scrollY = await page.evaluate(() => window.scrollY)
     if (width >= 900) {
       await page
-        .locator('[data-testid="health-row"][data-station="Sydney"] button')
+        .locator('[data-testid="health-row"][data-station="Pictou"] button')
         .click()
     } else {
-      await page.getByTestId('station-picker').selectOption('Sydney')
+      await page.getByTestId('station-picker').selectOption('Pictou')
     }
     await expect(page.locator('[data-skeleton]').first()).toBeAttached()
     await expect(page.locator('[data-series]')).toHaveCount(7)
@@ -343,7 +398,7 @@ for (const width of [1440, 390]) {
       await expect(page.getByTestId('c-detail')).toBeInViewport()
     }
     for (const label of await getChartLabels(page)) {
-      expect(label).toContain('at Sydney')
+      expect(label).toContain('at Pictou')
     }
   })
 }
@@ -353,7 +408,7 @@ test('a fast second click aborts the first request, and a visited station shows 
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('./')
-  await openStation(page, 'Halifax Johnston')
+  await openStation(page, 'Halifax')
   await waitForIdle(page)
   const failed: string[] = []
   const asked: string[] = []
@@ -417,10 +472,10 @@ test('the header says that the data is historical, and nothing says live', async
   page,
 }) => {
   await page.goto('./')
-  await expect(page).toHaveTitle(/historical data, 2016 - 2025/)
+  await expect(page).toHaveTitle(/historical data, 2010 - 2025/)
   const header = page.locator('.c-title')
   await expect(header).toContainText(
-    'Historical hourly readings 2016 - 2025, Nova Scotia Open Data.'
+    'Historical hourly readings 2010 - 2025, Nova Scotia Open Data.'
   )
   await expect(page.locator('footer')).toContainText('This screen is not live')
   await expect(page.getByTestId('c-limits-note')).toHaveText(
@@ -432,49 +487,61 @@ test('the header says that the data is historical, and nothing says live', async
   }
 })
 
-test('the year selector holds 2016 to 2025, opens on 2025, and drives the tiles', async ({
+test('the year selector holds 2010 to 2025, opens on 2025, and drives the tiles', async ({
   page,
 }) => {
   await page.goto('./')
+  await page
+    .getByTestId('c-pollutant')
+    .getByText('PM2.5', { exact: true })
+    .click()
   const select = page.getByTestId('c-year-select')
   await expect(select.locator('option')).toHaveText(
-    Array.from({ length: 10 }, (_, i) => String(2016 + i))
+    Array.from({ length: 16 }, (_, i) => String(2010 + i))
   )
   await expect(select).toHaveValue('2025')
   const tile = (name: string) =>
     page.locator(`[data-testid="c-tile"][data-station="${name}"]`)
   await expect(tile('Aylesford')).toHaveAttribute('data-verdict', 'within')
-  await expect(tile('Halifax')).toHaveAttribute('data-verdict', 'nodata')
+  await expect(tile('Halifax')).toHaveAttribute('data-verdict', 'within')
   await select.selectOption('2016')
   await expect(page.locator('#c-grid-h')).toContainText('2016')
   await expect(tile('Aylesford')).toHaveAttribute('data-verdict', 'within')
   await expect(tile('Halifax')).toHaveAttribute('data-verdict', 'within')
-  await expect(tile('Halifax Johnston')).toHaveAttribute(
-    'data-verdict',
-    'nodata'
-  )
-  await expect(tile('Halifax Johnston')).toContainText('No readings in 2016.')
+  await page
+    .getByTestId('c-pollutant')
+    .getByText('NO2', { exact: true })
+    .click()
+  await expect(tile('Aylesford')).not.toHaveAttribute('data-verdict', 'nodata')
+  await select.selectOption('2025')
+  await expect(tile('Aylesford')).toHaveAttribute('data-verdict', 'nodata')
+  await expect(tile('Aylesford')).toContainText('No readings in 2025.')
 })
 
-test('each tile has a strip of ten cells, and a year with no readings is missing', async ({
+test('each tile has a strip of sixteen cells, and a year with no readings is missing', async ({
   page,
 }) => {
   await page.goto('./')
+  await page
+    .getByTestId('c-pollutant')
+    .getByText('NO2', { exact: true })
+    .click()
   const strip = page.locator(
-    '[data-testid="c-tile"][data-station="Halifax Johnston"] .c-years li'
+    '[data-testid="c-tile"][data-station="Aylesford"] .c-years li'
   )
-  await expect(strip).toHaveCount(10)
-  await expect(strip.nth(0)).toHaveAttribute('data-state', 'missing')
-  await expect(strip.nth(1)).toHaveAttribute('data-state', 'missing')
-  await expect(strip.nth(2)).not.toHaveAttribute('data-state', 'missing')
-  await expect(strip.nth(0).locator('.sr-only')).toHaveText('2016: no readings')
-  await expect(strip.nth(9).locator('.sr-only')).toHaveText(
-    /^2025: peak \d+% of the limit$/
+  await expect(strip).toHaveCount(16)
+  await expect(strip.nth(6)).not.toHaveAttribute('data-state', 'missing')
+  await expect(strip.nth(7)).not.toHaveAttribute('data-state', 'missing')
+  await expect(strip.nth(8)).toHaveAttribute('data-state', 'missing')
+  await expect(strip.nth(15)).toHaveAttribute('data-state', 'missing')
+  await expect(strip.nth(8).locator('.sr-only')).toHaveText('2018: no readings')
+  await expect(strip.nth(6).locator('.sr-only')).toHaveText(
+    /^2016: (peak \d+% of the limit|no official limit)$/
   )
-  await expect(strip.nth(9)).toHaveClass(/on/)
+  await expect(strip.nth(15)).toHaveClass(/on/)
   const labels = await strip.locator('.sr-only').allTextContents()
   expect(labels.map(l => l.slice(0, 4))).toEqual(
-    Array.from({ length: 10 }, (_, i) => String(2016 + i))
+    Array.from({ length: 16 }, (_, i) => String(2010 + i))
   )
 })
 
@@ -513,92 +580,132 @@ test('a series with no reading in the year shows as missing in the readings', as
   page,
 }) => {
   await page.goto('./')
-  await page.getByTestId('c-year-select').selectOption('2016')
-  await openStation(page, 'Halifax Johnston')
+  await page
+    .getByTestId('c-pollutant')
+    .getByText('NO2', { exact: true })
+    .click()
+  await openStation(page, 'Aylesford')
   await expect(page.getByTestId('no-readings').first()).toContainText(
-    'No readings in 2016'
+    'No readings in 2025'
   )
   await expect(page.locator('svg[data-chart]')).toHaveCount(0)
 })
 
-const NS_BOX = [179, 192, 1867, 1551] as const
-const PICTOU_PIXEL = [1142, 797]
+const PICTOU_PIXEL = COUNTY_PIXELS['Pictou, NS']
 const NEW_BRUNSWICK_PIXEL = [400, 500]
-const WATER_RGB = [0xae, 0xbf, 0xca]
 
-const openMap = async (page: Page) => {
-  await page.setViewportSize({ width: 1440, height: 900 })
-  await page.goto('./')
-  await expect(page.locator('.map-view[data-ready="true"]')).toBeVisible()
-  return (await page.locator('.map-canvas').boundingBox())!
-}
+const FRAME_CORNER_PX = 8
 
-const getHomePoint = (
-  canvas: { x: number; y: number; width: number; height: number },
-  [x, y]: number[]
-) => {
-  const [minX, minY, maxX, maxY] = NS_BOX
-  const scale = getHomeScale(NS_BOX, canvas.width, canvas.height)
-  return {
-    x: canvas.x + canvas.width / 2 + (x + 0.5 - (minX + maxX + 1) / 2) * scale,
-    y: canvas.y + canvas.height / 2 + (y + 0.5 - (minY + maxY + 1) / 2) * scale,
-  }
-}
-
-const readPixels = async (
-  page: Page,
-  clip: { x: number; y: number; width: number; height: number }
-) => {
-  const png = await page.screenshot({ clip })
-  return page.evaluate(async base64 => {
-    const response = await fetch(`data:image/png;base64,${base64}`)
-    const bitmap = await createImageBitmap(await response.blob())
-    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
-    const context = canvas.getContext('2d')!
-    context.drawImage(bitmap, 0, 0)
-    return [...context.getImageData(0, 0, bitmap.width, bitmap.height).data]
-  }, png.toString('base64'))
-}
-
-const isWater = (rgba: number[], at: number) =>
-  WATER_RGB.every((value, i) => Math.abs(rgba[at + i] - value) <= 3)
-
-const getWaterShare = async (
-  page: Page,
-  canvas: { x: number; y: number; width: number; height: number }
-) => {
-  const rgba = await readPixels(page, canvas)
-  let water = 0
-  for (let at = 0; at < rgba.length; at += 4) {
-    if (isWater(rgba, at)) {
-      water++
-    }
-  }
-  return water / (rgba.length / 4)
-}
-
-const expectCountyAt = async (
-  page: Page,
-  point: { x: number; y: number },
-  county: string
-) => {
-  await page.mouse.move(point.x, point.y)
-  await expect(page.getByTestId('map-tip')).toContainText(county)
-}
-
-test('a left drag pans the map and opens no county', async ({ page }) => {
-  const canvas = await openMap(page)
-  const start = getHomePoint(canvas, PICTOU_PIXEL)
-  const end = { x: start.x + 120, y: start.y + 60 }
-  await expectCountyAt(page, start, 'Pictou County')
-  await page.mouse.down()
-  await page.mouse.move(end.x, end.y, { steps: 8 })
-  await page.mouse.up()
-  await expect(page.getByTestId('map-chooser')).toHaveCount(0)
-  await expect(page.getByTestId('c-detail')).toHaveCount(0)
+const getMapShot = async (page: Page, canvas: Box) => {
   await page.mouse.move(canvas.x + 4, canvas.y + 4)
   await expect(page.getByTestId('map-tip')).toHaveCount(0)
-  await expectCountyAt(page, end, 'Pictou County')
+  await page.waitForTimeout(400)
+  return page.screenshot({
+    clip: {
+      x: canvas.x + FRAME_CORNER_PX,
+      y: canvas.y + FRAME_CORNER_PX,
+      width: canvas.width - 2 * FRAME_CORNER_PX,
+      height: canvas.height - 2 * FRAME_CORNER_PX,
+    },
+  })
+}
+
+test('a wheel and a drag over the map leave the view unchanged', async ({
+  page,
+}) => {
+  const canvas = await openMap(page)
+  const start = getHomePoint(canvas, PICTOU_PIXEL)
+  const before = await getMapShot(page, canvas)
+  await expectCountyAt(page, start, 'Pictou County')
+  await page.mouse.wheel(0, -600)
+  await page.mouse.wheel(0, 900)
+  await page.mouse.down()
+  await page.mouse.move(start.x + 120, start.y + 60, { steps: 8 })
+  await page.mouse.up()
+  await page.mouse.dblclick(
+    canvas.x + canvas.width / 2,
+    canvas.y + canvas.height * 0.9
+  )
+  await page.mouse.click(start.x, start.y, { button: 'middle' })
+  const after = await getMapShot(page, canvas)
+  expect(after.equals(before)).toBe(true)
+  await expect(page.getByTestId('map-chooser')).toHaveCount(0)
+  await expect(page.getByTestId('c-detail')).toHaveCount(0)
+  await expectCountyAt(page, start, 'Pictou County')
+})
+
+test('a middle-button drag and the zoom and pan keys leave the view unchanged', async ({
+  page,
+}) => {
+  const canvas = await openMap(page)
+  const start = getHomePoint(canvas, PICTOU_PIXEL)
+  const before = await getMapShot(page, canvas)
+  for (const key of ['ArrowLeft', 'ArrowDown', '+', '=', '-']) {
+    await page.keyboard.press(key)
+  }
+  await page.evaluate(() => {
+    const target = document.querySelector('.map-canvas')!
+    const base = { pointerId: 7, bubbles: true, cancelable: true }
+    target.dispatchEvent(
+      new PointerEvent('pointerdown', { ...base, button: 1, buttons: 4 })
+    )
+    target.dispatchEvent(
+      new PointerEvent('pointermove', {
+        ...base,
+        buttons: 4,
+        clientX: 600,
+        clientY: 300,
+      })
+    )
+    target.dispatchEvent(new PointerEvent('pointerup', { ...base, button: 1 }))
+  })
+  expect((await getMapShot(page, canvas)).equals(before)).toBe(true)
+  await expectCountyAt(page, start, 'Pictou County')
+})
+
+test('a wheel over the map scrolls the page on a phone', async ({ page }) => {
+  const canvas = await openMap(page, 390, 844)
+  const scroll = () =>
+    page.evaluate(
+      () => window.scrollY + (document.querySelector('.c-page')?.scrollTop ?? 0)
+    )
+  expect(await scroll()).toBe(0)
+  await page.mouse.move(canvas.x + canvas.width / 2, canvas.y + 40)
+  await page.mouse.wheel(0, 300)
+  await expect.poll(scroll).toBeGreaterThan(0)
+})
+
+test.describe('a touch screen', () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } })
+
+  test('a tap on a county picks it, and a swipe over the map picks none', async ({
+    page,
+  }) => {
+    const canvas = await openMap(page, 390, 844)
+    const start = getHomePoint(canvas, PICTOU_PIXEL)
+    const before = await getMapShot(page, canvas)
+    const client = await page.context().newCDPSession(page)
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: start.x, y: start.y }],
+    })
+    for (let step = 1; step <= 6; step++) {
+      await client.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: start.x + 4 * step, y: start.y + 12 * step }],
+      })
+    }
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchEnd',
+      touchPoints: [],
+    })
+    await page.waitForTimeout(300)
+    await expect(page.getByTestId('c-detail')).toHaveCount(0)
+    expect((await getMapShot(page, canvas)).equals(before)).toBe(true)
+    await page.touchscreen.tap(start.x, start.y)
+    await expect(page.getByTestId('c-detail')).toBeVisible()
+    await expect(page.locator('#c-detail-h')).toHaveText('Pictou')
+  })
 })
 
 test('a right-click on the map has its default prevented', async ({ page }) => {
@@ -619,35 +726,121 @@ test('a right-click on the map has its default prevented', async ({ page }) => {
   ).toBe(true)
 })
 
-test('a double-click zooms in about the cursor', async ({ page }) => {
-  const canvas = await openMap(page)
-  const point = getHomePoint(canvas, PICTOU_PIXEL)
-  const before = await getWaterShare(page, canvas)
-  await page.mouse.dblclick(point.x, point.y)
-  await expect
-    .poll(() => getWaterShare(page, canvas))
-    .toBeLessThan(before * 0.8)
-  await page.mouse.move(canvas.x + 4, canvas.y + 4)
-  await expectCountyAt(page, point, 'Pictou County')
-})
-
 test('land of New Brunswick on screen takes the water color', async ({
   page,
 }) => {
   const canvas = await openMap(page)
   const point = getHomePoint(canvas, NEW_BRUNSWICK_PIXEL)
-  const rgba = await readPixels(page, {
-    x: Math.round(point.x),
-    y: Math.round(point.y),
-    width: 1,
-    height: 1,
-  })
-  expect(isWater(rgba, 0)).toBe(true)
+  expect(isColor(await getColorAt(page, point), SEA_COLOR)).toBe(true)
   await page.mouse.move(point.x, point.y)
   await expect(page.getByTestId('map-tip')).toHaveCount(0)
 })
 
-const HALIFAX_PIXEL = [1004, 1036]
+const luminance = (rgba: number[], at: number) =>
+  0.299 * rgba[at] + 0.587 * rgba[at + 1] + 0.114 * rgba[at + 2]
+
+const findDarkEdges = (rgba: number[], canvas: Box, from: Point) => {
+  const found: number[] = []
+  const width = Math.round(canvas.width)
+  const height = Math.round(canvas.height)
+  const x0 = Math.round(from.x - canvas.x)
+  const y0 = Math.round(from.y - canvas.y)
+  const fill = rgba.slice(4 * (y0 * width + x0), 4 * (y0 * width + x0) + 3)
+  const read = (x: number, y: number) =>
+    x >= 0 && y >= 0 && x < width && y < height ? 4 * (y * width + x) : null
+  for (const [dx, dy] of [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ]) {
+    let x = x0
+    let y = y0
+    while (
+      read(x, y) !== null &&
+      isColor(rgba.slice(read(x, y)!), toHex(fill))
+    ) {
+      x += dx
+      y += dy
+    }
+    const outer = read(x + 4 * dx, y + 4 * dy)
+    if (outer === null) {
+      continue
+    }
+    const floor = Math.min(luminance(fill, 0), luminance(rgba, outer)) - 12
+    for (let step = 0; step < 4; step++) {
+      const edge = read(x + step * dx, y + step * dy)
+      if (edge !== null && luminance(rgba, edge) < floor) {
+        found.push(edge)
+        break
+      }
+    }
+  }
+  return found
+}
+
+test('a thin border is drawn around every county, lit or not', async ({
+  page,
+}) => {
+  const canvas = await openMap(page)
+  const overlay = page.locator('.map-borders')
+  await expect(overlay).toHaveAttribute('data-segments', /^[1-9]\d{3,}$/)
+  const counties = {
+    ...COUNTY_PIXELS,
+    'Digby, NS': [342, 1218],
+    'Annapolis, NS': [492, 1092],
+    'Colchester, NS': [984, 846],
+    'Antigonish, NS': [1302, 792],
+    'Yarmouth, NS': [324, 1356],
+  }
+  expect(Object.keys(counties)).toHaveLength(10)
+  await page.mouse.move(canvas.x + 4, canvas.y + 4)
+  const drawn = await readPixels(page, canvas)
+  await overlay.evaluate(element => (element.style.display = 'none'))
+  const bare = await readPixels(page, canvas)
+  await overlay.evaluate(element => (element.style.display = ''))
+  for (const [county, pixel] of Object.entries(counties)) {
+    const point = getHomePoint(canvas, pixel)
+    const edges = findDarkEdges(drawn, canvas, point)
+    expect(edges.length, `${county} edges`).toBeGreaterThan(0)
+    const inked = edges.filter(
+      edge => luminance(bare, edge) - luminance(drawn, edge) >= 8
+    )
+    expect(inked.length, `${county} inked by the border layer`).toBeGreaterThan(
+      0
+    )
+  }
+  const idle = await getColorAt(
+    page,
+    getHomePoint(canvas, counties['Digby, NS'])
+  )
+  expect(isColor(idle, VERDICT_COLOR.idle)).toBe(true)
+})
+
+test('the border layer holds one pixel of the screen per device pixel at a ratio of two', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+    deviceScaleFactor: 2,
+  })
+  const page = await context.newPage()
+  const canvas = await openMap(page)
+  const widths = await page.locator('.map-borders').evaluate(element => {
+    const overlay = element as HTMLCanvasElement
+    const rect = overlay.getBoundingClientRect()
+    return {
+      ratio: overlay.width / rect.width,
+      css: rect.width,
+      pixels: overlay.width,
+    }
+  })
+  expect(widths.ratio).toBeCloseTo(2, 1)
+  expect(canvas.width).toBeCloseTo(widths.css, 0)
+  await context.close()
+})
+
+const HALIFAX_PIXEL = COUNTY_PIXELS['Halifax, NS']
 
 const getChooserState = (page: Page) =>
   page.evaluate(() => {
@@ -679,12 +872,9 @@ for (const [width, height] of [
   test(`a station pick at ${width} x ${height} keeps the top banner in view`, async ({
     page,
   }) => {
-    await page.setViewportSize({ width, height })
-    await page.goto('./')
-    await expect(page.locator('.map-view[data-ready="true"]')).toBeVisible()
-    await page
-      .locator('[data-testid="map-county"][data-county="Halifax, NS"]')
-      .click()
+    const canvas = await openMap(page, width, height)
+    const halifax = getHomePoint(canvas, HALIFAX_PIXEL)
+    await page.mouse.click(halifax.x, halifax.y)
     await page
       .getByTestId('map-chooser')
       .getByRole('button', { name: 'Lake Major' })
@@ -704,61 +894,40 @@ for (const [width, height] of [
   [1440, 900],
   [390, 844],
 ]) {
-  test(`the chooser stays inside the map frame at each edge at ${width} px`, async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width, height })
-    await page.goto('./')
-    await expect(page.locator('.map-view[data-ready="true"]')).toBeVisible()
-    const canvas = (await page.locator('.map-canvas').boundingBox())!
-    const home = getHomePoint(canvas, HALIFAX_PIXEL)
-    for (const edge of [
-      { x: canvas.x + canvas.width - 14, y: home.y },
-      { x: home.x, y: canvas.y + canvas.height - 14 },
-    ]) {
-      await page.reload()
-      await expect(page.locator('.map-view[data-ready="true"]')).toBeVisible()
-      await page.mouse.move(home.x, home.y)
-      await page.mouse.down()
-      await page.mouse.move(edge.x, edge.y, { steps: 8 })
-      await page.mouse.up()
-      await expectCountyAt(page, edge, 'Halifax County')
-      await page.mouse.click(edge.x, edge.y)
-      const chooser = page.getByTestId('map-chooser')
-      await expect(chooser.getByRole('button')).toHaveCount(4)
+  for (const county of ['Halifax, NS', 'Kings, NS']) {
+    test(`the chooser of ${county} sits on its anchor inside the map frame at ${width} px`, async ({
+      page,
+    }) => {
+      const canvas = await openMap(page, width, height)
+      const point = getHomePoint(canvas, COUNTY_PIXELS[county])
+      await expectCountyAt(page, point, county.replace(', NS', ' County'))
+      await page.mouse.click(point.x, point.y)
+      await expect(page.getByTestId('map-chooser')).toBeVisible()
       const state = await getChooserState(page)
       expect(state.inside).toBe(true)
       expect(state.reachable).toBe(true)
-    }
-  })
+      expect(
+        Math.abs(state.anchor.x - (point.x - canvas.x))
+      ).toBeLessThanOrEqual(2)
+      expect(
+        Math.abs(state.anchor.y - (point.y - canvas.y))
+      ).toBeLessThanOrEqual(2)
+    })
+  }
 }
 
-test('the chooser follows its anchor while the map pans', async ({ page }) => {
+test('a drag leaves the open chooser where it is', async ({ page }) => {
   const canvas = await openMap(page)
   const point = getHomePoint(canvas, HALIFAX_PIXEL)
-  await expectCountyAt(page, point, 'Halifax County')
   await page.mouse.click(point.x, point.y)
   await expect(page.getByTestId('map-chooser')).toBeVisible()
   const before = await getChooserState(page)
-  expect(Math.abs(before.anchor.x - (point.x - canvas.x))).toBeLessThanOrEqual(
-    2
-  )
-  expect(Math.abs(before.anchor.y - (point.y - canvas.y))).toBeLessThanOrEqual(
-    2
-  )
   const start = { x: canvas.x + 10, y: canvas.y + canvas.height - 10 }
   await page.mouse.move(start.x, start.y)
   await page.mouse.down()
   await page.mouse.move(start.x + 60, start.y - 40, { steps: 8 })
   await page.mouse.up()
+  await page.waitForTimeout(300)
   await expect(page.getByTestId('map-chooser')).toBeVisible()
-  await expect
-    .poll(async () =>
-      Math.abs((await getChooserState(page)).left - before.left - 60)
-    )
-    .toBeLessThanOrEqual(1)
-  const after = await getChooserState(page)
-  expect(Math.abs(after.anchor.x - before.anchor.x - 60)).toBeLessThanOrEqual(1)
-  expect(Math.abs(after.anchor.y - before.anchor.y + 40)).toBeLessThanOrEqual(1)
-  expect(after.inside).toBe(true)
+  expect(await getChooserState(page)).toEqual(before)
 })

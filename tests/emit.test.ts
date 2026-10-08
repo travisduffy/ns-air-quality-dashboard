@@ -5,13 +5,18 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { derive } from '../scripts/derive.ts'
 import { emitData } from '../scripts/emit.ts'
+import { HANDOVERS } from '../scripts/handovers.ts'
 import { loadCounties, loadData } from '../scripts/load.ts'
+import { withHandovers } from '../scripts/merge.ts'
 import { yearHours } from '../shared/time.ts'
 
 const ROOT = new URL('..', import.meta.url).pathname
 const PUBLIC = join(ROOT, 'public')
 const loaded = loadData(ROOT)
-const derived = derive(loaded, loadCounties(ROOT, loaded))
+const derived = withHandovers(
+  derive(loaded, loadCounties(ROOT, loaded)),
+  HANDOVERS
+)
 
 const readJson = (path: string) => JSON.parse(readFileSync(path, 'utf8'))
 
@@ -61,9 +66,9 @@ test('a readings file holds one value for each hour of its year in every series'
   }
 })
 
-test('the overview holds a summary of each of the ten years', () => {
+test('the overview holds a summary of each of the sixteen years', () => {
   const o = readJson(join(PUBLIC, 'overview.json'))
-  assert.equal(o.years.length, 10)
+  assert.equal(o.years.length, 16)
   for (const station of o.stations) {
     for (const series of station.series) {
       assert.deepEqual(

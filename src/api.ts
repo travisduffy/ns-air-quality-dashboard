@@ -1,6 +1,8 @@
 import {
+  fabricPath,
   readingsPath,
   type Overview,
+  type StationFabric,
   type StationReadings,
 } from '../shared/contract.ts'
 
@@ -21,5 +23,15 @@ export const getReadings = (
 ) =>
   getJson<StationReadings>(
     readingsPath(encodeURIComponent(station), year),
+    signal
+  )
+
+export const getFabric = (
+  station: string,
+  pollutant: string,
+  signal?: AbortSignal
+) =>
+  getJson<StationFabric>(
+    fabricPath(encodeURIComponent(station), pollutant),
     signal
   )

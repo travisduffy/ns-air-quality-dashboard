@@ -194,18 +194,18 @@ const daily = (station: string, pollutant: string, day: string) =>
     .series.find(x => x.pollutant === pollutant)!
     .daily!.find(d => d.day === day)!
 
-test('the raw files have the grid of ten years', () => {
+test('the raw files have the grid of sixteen years', () => {
   assert.partialDeepStrictEqual(derived.overview.window, {
-    start: '2016-01-01T01:00:00',
+    start: '2010-01-01T01:00:00',
     end: '2026-01-01T00:00:00',
-    hours: 87672,
+    hours: 140256,
   })
   assert.deepEqual(
     derived.overview.years,
-    [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+    Array.from({ length: 16 }, (_, i) => 2010 + i)
   )
   const sum = derived.overview.years.reduce((a, y) => a + yearHours(y), 0)
-  assert.equal(sum, 87672)
+  assert.equal(sum, 140256)
   assert.equal(yearHours(2016), 8784)
   assert.equal(yearHours(2017), 8760)
 })
@@ -398,10 +398,10 @@ test('the overview lists each correction of the source rows', () => {
 
 test('every year of every series has a summary that carries its judgement', () => {
   for (const station of derived.overview.stations) {
-    assert.equal(station.health.length, 10)
-    assert.equal(station.verdicts.length, 10)
+    assert.equal(station.health.length, 16)
+    assert.equal(station.verdicts.length, 16)
     for (const series of station.series) {
-      assert.equal(series.years.length, 10)
+      assert.equal(series.years.length, 16)
       for (const year of series.years) {
         assert.deepEqual(
           year.judgement,

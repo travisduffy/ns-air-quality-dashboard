@@ -6,9 +6,16 @@ import {
   msStamp,
   stampMs,
 } from '../shared/time.ts'
+import { MARK_PX } from './fabric-draw.ts'
 import { num } from './format.ts'
 import { Bone, useDelayed } from './skeleton.tsx'
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react'
 
 const LEFT = 46
 const RIGHT = 8
@@ -24,6 +31,26 @@ const MISSING = '#5b4a00'
 
 export const DAILY_HEIGHT = 200
 export const HOURLY_HEIGHT = 190
+
+let markerDay: string | null = null
+const markerListeners = new Set<() => void>()
+
+export const setMarkerDay = (day: string | null) => {
+  markerDay = day
+  for (const listener of markerListeners) {
+    listener()
+  }
+}
+
+const subscribeMarker = (listener: () => void) => {
+  markerListeners.add(listener)
+  return () => {
+    markerListeners.delete(listener)
+  }
+}
+
+export const useMarkerDay = () =>
+  useSyncExternalStore(subscribeMarker, () => markerDay)
 
 const useWidth = () => {
   const ref = useRef<HTMLDivElement | null>(null)
@@ -73,6 +100,53 @@ const yAxis = (values: number[], limit: number | null) => {
 }
 
 const DAY_MS = 24 * HOUR_MS
+
+const DayMarker = ({
+  day,
+  scale,
+  domain,
+}: {
+  day: string
+  scale: Scale
+  domain: Domain
+}) => {
+  const { first, last } = dayStamps(day)
+  if (first > domain.t1 || last < domain.t0) {
+    return null
+  }
+  const start = Date.parse(`${day}T00:00:00Z`)
+  const x0 = scale.x(start)
+  const x1 = scale.x(start + DAY_MS)
+  const markPx = Math.max(MARK_PX, x1 - x0)
+  const mid = (x0 + x1) / 2
+  const onRight = mid > LEFT + scale.plotW / 2
+  return (
+    <g data-day-marker data-day={day}>
+      <rect
+        x={mid - markPx / 2}
+        y={TOP}
+        width={markPx}
+        height={scale.plotH}
+        fill={INK}
+        stroke="#fff"
+        strokeWidth={0.5}
+      />
+      <text
+        x={onRight ? mid - markPx / 2 - 4 : mid + markPx / 2 + 4}
+        y={TOP + 11}
+        textAnchor={onRight ? 'end' : 'start'}
+        fontSize={11}
+        fontWeight={600}
+        fill={INK}
+        stroke="#fff"
+        strokeWidth={3}
+        paintOrder="stroke"
+      >
+        {day}
+      </text>
+    </g>
+  )
+}
 
 const xTicks = (d: Domain) => {
   const out: number[] = []
@@ -160,6 +234,7 @@ type FrameProps = {
 
 const Frame = (p: FrameProps) => {
   const { width, height, domain, axis, limit } = p
+  const markedDay = useMarkerDay()
   const time: Domain = { t0: hourSpan(domain.t0).start, t1: domain.t1 }
   const plotW = width - LEFT - RIGHT
   const plotH = height - TOP - AXIS - STRIP - 6
@@ -232,6 +307,9 @@ const Frame = (p: FrameProps) => {
             {p.limitLabel}
           </text>
         </g>
+      )}
+      {markedDay !== null && (
+        <DayMarker day={markedDay} scale={scale} domain={domain} />
       )}
       <g data-strip>
         <rect x={LEFT} y={stripY} width={plotW} height={STRIP} fill="#eef2f5" />

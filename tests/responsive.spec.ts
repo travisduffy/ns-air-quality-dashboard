@@ -50,6 +50,8 @@ const SIZES = [
 
 const TOUCH_PX = 44
 const TOUCH_WIDTH_BELOW = 768
+const MIN_CONTROL_PX = 24
+const PHONE_WIDTH = 700
 
 const waitForSettled = async (page: Page) => {
   await expect(page.locator('[data-skeleton]')).toHaveCount(0)
@@ -70,7 +72,9 @@ const getBannerBox = (page: Page) =>
 const getCutElements = (page: Page) =>
   page.evaluate(() => {
     const roots = [
-      ...document.querySelectorAll('.c-top, .c-tiles, [data-testid="c-detail"]'),
+      ...document.querySelectorAll(
+        '.c-top, .c-tiles, [data-testid="c-detail"]'
+      ),
     ]
     const elements = [
       ...roots.flatMap(root => [root, ...root.querySelectorAll('*')]),
@@ -96,8 +100,11 @@ const getCutElements = (page: Page) =>
 // Each visible control smaller than 44 x 44 CSS px. Two exceptions, by
 // WCAG 2.5.5: a link inside a sentence is an inline target, and the button of
 // a tile or of a health row is a label whose target is the whole tile or row,
-// so the tile or the row is measured in its place.
-const getSmallControls = (page: Page) =>
+// so the tile or the row is measured in its place. A third exception, by
+// WCAG 2.5.8, only for a minimum of 24 px: a control under 24 px passes when a
+// 24 x 24 square on its center touches no other control, as the year rows of
+// the fabric do with their 4 px gap.
+const getSmallControls = (page: Page, minimum: number) =>
   page.evaluate(touch => {
     const controls = [
       ...document.querySelectorAll(
@@ -113,18 +120,35 @@ const getSmallControls = (page: Page) =>
         const box = target.getBoundingClientRect()
         return { control, box }
       })
-      .filter(({ control, box }) => {
+      .filter(({ control, box }, _, all) => {
         const visible =
           box.width > 0 &&
           box.height > 0 &&
           getComputedStyle(control).visibility !== 'hidden'
-        return visible && (box.width < touch || box.height < touch)
+        if (!visible || (box.width >= touch && box.height >= touch)) {
+          return false
+        }
+        if (touch > 24) {
+          return true
+        }
+        const x = box.left + box.width / 2
+        const y = box.top + box.height / 2
+        return all.some(
+          other =>
+            other.control !== control &&
+            other.box.width > 0 &&
+            other.box.height > 0 &&
+            other.box.left < x + 12 &&
+            other.box.right > x - 12 &&
+            other.box.top < y + 12 &&
+            other.box.bottom > y - 12
+        )
       })
       .map(
         ({ control, box }) =>
           `${control.tagName.toLowerCase()} "${(control.textContent ?? '').trim().slice(0, 24)}" ${box.width.toFixed(1)}x${box.height.toFixed(1)}`
       )
-  }, TOUCH_PX)
+  }, minimum)
 
 const checkLayout = async (page: Page, width: number) => {
   // The detail panel rises in with a transform; measure the end state.
@@ -132,12 +156,73 @@ const checkLayout = async (page: Page, width: number) => {
     Promise.all(document.getAnimations().map(a => a.finished))
   )
   expect(await getPageOverflow(page), 'horizontal page overflow').toBe(0)
-  expect(await getCutElements(page), 'elements cut by the viewport').toEqual(
-    []
-  )
+  expect(await getCutElements(page), 'elements cut by the viewport').toEqual([])
   if (width < TOUCH_WIDTH_BELOW) {
-    expect(await getSmallControls(page), 'controls under 44 px').toEqual([])
+    expect(
+      await getSmallControls(page, TOUCH_PX),
+      'controls under 44 px'
+    ).toEqual([])
   }
+}
+
+const choosePollutant = async (page: Page, code: string) => {
+  if (page.viewportSize()!.width < PHONE_WIDTH) {
+    await page.getByTestId('c-pollutant-select').selectOption(code)
+    return
+  }
+  await page.getByTestId('c-pollutant').getByText(code, { exact: true }).click()
+}
+
+const waitStill = async (page: Page, testId: string) => {
+  let last = -1
+  await expect
+    .poll(
+      async () => {
+        const box = (await page.getByTestId(testId).boundingBox())!
+        const still = box.y === last
+        last = box.y
+        return still
+      },
+      { intervals: [300] }
+    )
+    .toBe(true)
+}
+
+// The fabric of Halifax in single mode, with one day of 2019 tapped.
+const openTappedFabric = async (page: Page) => {
+  await choosePollutant(page, 'O3')
+  await page
+    .locator('[data-testid="c-tile"][data-station="Halifax"] button')
+    .click()
+  await expect(page.getByTestId('fabric')).toHaveAttribute('data-ready', 'true')
+  await waitStill(page, 'fabric-canvas')
+  const year = page.locator('[data-testid="fabric-year"][data-year="2019"]')
+  await year.scrollIntoViewIfNeeded()
+  await waitStill(page, 'fabric-canvas')
+  const canvas = (await page.getByTestId('fabric-canvas').boundingBox())!
+  const row = (await year.boundingBox())!
+  await page.mouse.click(canvas.x + canvas.width * 0.55, row.y + row.height / 2)
+  await expect(page.getByTestId('fabric-outline')).toHaveAttribute(
+    'data-year',
+    '2019'
+  )
+}
+
+// The three views of the scan: the screen in All mode, the screen with one
+// pollutant picked, and the detail of Halifax with the fabric and a tapped day.
+// Each must have no horizontal overflow and no control under 24 CSS px.
+const checkScanView = async (page: Page) => {
+  await page.evaluate(() =>
+    Promise.all(
+      document.getAnimations().map(a => a.finished.catch(() => undefined))
+    )
+  )
+  expect(await getPageOverflow(page), 'horizontal page overflow').toBe(0)
+  expect(await getCutElements(page), 'elements cut by the viewport').toEqual([])
+  expect(
+    await getSmallControls(page, MIN_CONTROL_PX),
+    `controls under ${MIN_CONTROL_PX} px`
+  ).toEqual([])
 }
 
 for (const [width, height] of SIZES) {
@@ -166,6 +251,28 @@ for (const [width, height] of SIZES) {
         expect(banner.top, 'banner top after the pick').toBe(0)
       }
       await checkLayout(page, width)
+    })
+
+    test('scan: the All mode fits the screen', async ({ page }) => {
+      await page.goto('./')
+      await waitForSettled(page)
+      await checkScanView(page)
+    })
+
+    test('scan: one pollutant picked fits the screen', async ({ page }) => {
+      await page.goto('./')
+      await waitForSettled(page)
+      await choosePollutant(page, 'O3')
+      await checkScanView(page)
+    })
+
+    test('scan: the fabric of Halifax with one day tapped fits the screen', async ({
+      page,
+    }) => {
+      await page.goto('./')
+      await waitForSettled(page)
+      await openTappedFabric(page)
+      await checkScanView(page)
     })
   })
 }

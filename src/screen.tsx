@@ -1,14 +1,16 @@
+import { worstVerdict } from '../shared/contract.ts'
 import './map.css'
-import { Footer, Health, Readings } from './panels.tsx'
+import { Footer, Health, HandoverNote, Readings } from './panels.tsx'
 import './screen.css'
 import { MapSkeleton } from './skeleton.tsx'
-import { VERDICT_MARK, VERDICT_WORD } from './stations.ts'
-import { Tile, getScaleMax } from './tile.tsx'
+import { VERDICT_MARK, VERDICT_WORD, getHandover } from './stations.ts'
+import { Tile, getAllVerdict, getScaleMax } from './tile.tsx'
 import type { DashboardData } from './use-dashboard-data.ts'
-import { getYearCounties } from './years.ts'
+import { getYearCounties, type YearStation } from './years.ts'
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 
-const DEFAULT_POLLUTANT = 'PM2.5'
+const ALL_VALUE = 'all'
+const ALL_LABEL = 'All pollutants'
 
 const MapView = lazy(() =>
   import('./map.tsx')
@@ -27,43 +29,6 @@ const MapView = lazy(() =>
     })
 )
 
-type StationSearchProps = {
-  overview: DashboardData['overview']
-  onPick: (station: string) => void
-}
-
-const StationSearch = ({ overview, onPick }: StationSearchProps) => {
-  const [text, setText] = useState('')
-
-  return (
-    <label className="c-search">
-      <span>Find a station</span>
-      <input
-        type="search"
-        list="c-stations"
-        placeholder="Find a station"
-        autoComplete="off"
-        value={text}
-        onChange={event => {
-          setText(event.target.value)
-          const hit = overview.stations.find(
-            s => s.station.toLowerCase() === event.target.value.toLowerCase()
-          )
-          if (hit !== undefined) {
-            setText('')
-            onPick(hit.station)
-          }
-        }}
-      />
-      <datalist id="c-stations">
-        {overview.stations.map(s => (
-          <option key={s.station} value={s.station} />
-        ))}
-      </datalist>
-    </label>
-  )
-}
-
 // Scroll the one container that holds the detail, and no ancestor of it:
 // scrollIntoView also scrolls the page, which cuts off the top banner. The
 // detail is the first child of the panel, and it rises 8 px as it enters, so
@@ -78,14 +43,24 @@ const revealDetail = (panel: HTMLElement, behavior: ScrollBehavior) => {
   window.scrollTo({ top: window.scrollY + top, behavior })
 }
 
+const getAllCounties = (
+  overview: DashboardData['overview'],
+  stations: YearStation[]
+) =>
+  overview.counties.map(county => ({
+    county: county.county,
+    stations: county.stations,
+    verdict: worstVerdict(
+      stations
+        .filter(s => county.stations.includes(s.station))
+        .map(getAllVerdict)
+    ),
+  }))
+
 export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
   const { overview, year, setYear, stations, station, setStation } = dashboard
   const pollutants = overview.pollutants
-  const [pollutant, setPollutant] = useState(
-    pollutants.some(p => p.code === DEFAULT_POLLUTANT)
-      ? DEFAULT_POLLUTANT
-      : (pollutants[0]?.code ?? '')
-  )
+  const [pollutant, setPollutant] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [hot, setHot] = useState<string[]>([])
   const panelRef = useRef<HTMLDivElement>(null)
@@ -93,18 +68,28 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
   const trigger = useRef<HTMLElement | null>(null)
 
   const scaleMax = useMemo(
-    () => getScaleMax(stations, pollutant),
+    () => (pollutant === null ? 1 : getScaleMax(stations, pollutant)),
     [stations, pollutant]
   )
-  const label = pollutants.find(p => p.code === pollutant)?.label ?? pollutant
+  const label = pollutants.find(p => p.code === pollutant)?.label ?? ALL_LABEL
   const picked = stations.find(s => s.station === station)
   if (station !== null && picked === undefined) {
     throw new Error(`the overview holds no station ${station}`)
   }
-  const verdict = picked === undefined ? null : picked.verdicts[pollutant]
+  const verdict =
+    picked === undefined
+      ? null
+      : pollutant === null
+        ? getAllVerdict(picked)
+        : picked.verdicts[pollutant]
+  const handover =
+    picked === undefined ? null : getHandover(overview, picked.station)
   const counties = useMemo(
-    () => getYearCounties(overview, year, pollutant),
-    [overview, year, pollutant]
+    () =>
+      pollutant === null
+        ? getAllCounties(overview, stations)
+        : getYearCounties(overview, year, pollutant),
+    [overview, stations, year, pollutant]
   )
 
   const pick = (name: string) => {
@@ -162,7 +147,6 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
             Historical hourly readings {first} - {last}, Nova Scotia Open Data.
           </p>
         </div>
-        <StationSearch overview={overview} onPick={pick} />
         <label className="c-year">
           <span>Year</span>
           <select
@@ -181,10 +165,15 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
           <label className="c-select">
             <span>Pollutant</span>
             <select
-              value={pollutant}
-              onChange={event => setPollutant(event.target.value)}
+              value={pollutant ?? ALL_VALUE}
+              onChange={event =>
+                setPollutant(
+                  event.target.value === ALL_VALUE ? null : event.target.value
+                )
+              }
               data-testid="c-pollutant-select"
             >
+              <option value={ALL_VALUE}>All</option>
               {pollutants.map(p => (
                 <option key={p.code} value={p.code}>
                   {p.code}, {p.label}
@@ -193,6 +182,15 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
             </select>
           </label>
           <div role="group" aria-label="Pollutant" className="c-buttons">
+            <button
+              type="button"
+              title={ALL_LABEL}
+              aria-pressed={pollutant === null}
+              onClick={() => setPollutant(null)}
+              data-testid="c-pollutant"
+            >
+              All
+            </button>
             {pollutants.map(p => (
               <button
                 key={p.code}
@@ -225,13 +223,20 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
                 {picked.station}
               </h2>
               <p className="c-verdict" data-testid="c-detail-verdict">
-                {pollutant}{' '}
+                {pollutant ?? 'All'}{' '}
                 <span aria-hidden="true">{VERDICT_MARK[verdict]}</span>{' '}
                 <strong>{VERDICT_WORD[verdict]}</strong>
               </p>
+              {handover !== null && (
+                <HandoverNote handover={handover} years={overview.years} />
+              )}
             </div>
             <div className="layout">
-              <Readings dashboard={dashboard} pollutant={pollutant} />
+              <Readings
+                dashboard={dashboard}
+                pollutant={pollutant}
+                onPollutant={setPollutant}
+              />
               <Health
                 stations={stations}
                 picked={picked.station}
@@ -244,10 +249,10 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
           <h2 id="c-grid-h">
             {label} at each station, {year}
           </h2>
-          <p className="c-note">
-            Colour: the 3-year verdict. Bar: the peak day. Cells: the yearly
-            peak, {first} - {last}. Pick a tile or a county for the full
-            readings.
+          <p className="c-note" data-testid="c-colour-note">
+            {pollutant === null
+              ? 'Colour: the worst 3-year verdict of the station. The line counts the pollutants over and within the limit. Pick a tile or a county for the full readings.'
+              : `Colour: the 3-year verdict. Bar: the peak day. Cells: the yearly peak, ${first} - ${last}. Pick a tile or a county for the full readings.`}
           </p>
           <p className="c-note" data-testid="c-limits-note">
             Every year is judged by the official 3-year statistic of the current
@@ -258,6 +263,7 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
               <Tile
                 key={s.station}
                 station={s}
+                handover={getHandover(overview, s.station)}
                 pollutant={pollutant}
                 year={year}
                 scaleMax={scaleMax}
@@ -320,15 +326,8 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
       </div>
 
       <div className="c-map">
-        <Suspense
-          fallback={<MapSkeleton />}
-        >
-          <MapView
-            counties={counties}
-            station={station}
-            onPick={pick}
-            onHover={setHot}
-          />
+        <Suspense fallback={<MapSkeleton />}>
+          <MapView counties={counties} onPick={pick} onHover={setHot} />
         </Suspense>
       </div>
     </main>
