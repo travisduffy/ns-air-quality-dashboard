@@ -45,8 +45,6 @@ export type Verdict =
 
 export type Outage = { hours: number; start: string; end: string }
 
-// The summary of one series in one year, as the page shows it. The page builds
-// it from a YearSummary and the limit of the series.
 export type SeriesSummary = {
   pollutant: string
   label: string
@@ -68,16 +66,11 @@ export type StationHealth = {
   longestOutage: (Outage & { pollutant: string }) | null
 }
 
-// A verdict of one year. The limit is the same for every year, so the series
-// holds it once.
 export type YearVerdict =
   | Omit<Extract<Verdict, { kind: 'hourly' }>, 'limit'>
   | Omit<Extract<Verdict, { kind: 'daily' }>, 'limit'>
   | { kind: 'none' }
 
-// The hours of a year that a series reported is `reported`. The expected hours
-// are the hours of the year, so a year before the series began has none
-// reported, and all its hours are missing.
 export type YearSummary = {
   year: number
   reported: number
@@ -91,10 +84,8 @@ export type SeriesOverview = {
   label: string
   unit: string
   datasetId: string
-  // The current limit, the same for every year. Null when none is official.
   limit: Limit | null
   reason: string | null
-  // The first and the last stamp that the series reported, or null for none.
   first: string | null
   last: string | null
   years: YearSummary[]
@@ -115,8 +106,6 @@ export type Overview = {
     licence: { name: string; url: string }
     fetchedFirst: string
     fetchedLast: string
-    // The corrections that the build made to the source rows, one sentence
-    // each.
     corrections: string[]
   }
   window: { start: string; end: string; hours: number; timeNote: string }
@@ -138,8 +127,6 @@ export type SeriesReadings = {
   daily?: Daily[]
 }
 
-// The readings of one station in one year. A series with no reading in the
-// year is not listed.
 export type StationReadings = {
   station: string
   year: number
@@ -152,7 +139,6 @@ export type StationReadings = {
 
 export type Derived = {
   overview: Overview
-  // By the key `station/year`.
   readings: Map<string, StationReadings>
 }
 
@@ -183,7 +169,6 @@ const pollutantRank = (pollutant: string) => {
   return i < 0 ? labels.length : i
 }
 
-// Every hour from the window start to the data end, inclusive.
 export const gridHours = (startMs: number, endMs: number) =>
   (endMs - startMs) / HOUR_MS + 1
 
@@ -203,7 +188,6 @@ export const toValues = (
   return values
 }
 
-// A gap is a maximal run of consecutive missing hours.
 export const findGaps = (values: (number | null)[], startMs: number) => {
   const gaps: Gap[] = []
   let from = -1
@@ -222,7 +206,6 @@ export const findGaps = (values: (number | null)[], startMs: number) => {
   return gaps
 }
 
-// The longest gap, the earliest one on a tie.
 export const longestGap = (gaps: Gap[]): Outage | null => {
   let best: Gap | null = null
   for (const g of gaps) if (best === null || g.hours > best.hours) best = g
@@ -276,8 +259,6 @@ const judge = (value: number | null, limit: Limit): DailyVerdict => {
   return value > limit.value ? 'over' : 'within'
 }
 
-// Daily mean of the readings of each day. A day with fewer than minHours
-// readings has no value.
 export const dailyMeans = (
   values: (number | null)[],
   startMs: number,
@@ -301,8 +282,6 @@ export const dailyMeans = (
   return out
 }
 
-// The 8-hour average at each hour J: the mean of hours J-7 to J, valid with at
-// least 6 readings. Hours before the window start count as missing.
 export const eightHourAverages = (values: (number | null)[]) =>
   values.map((_, j) => {
     let sum = 0
@@ -317,8 +296,6 @@ export const eightHourAverages = (values: (number | null)[]) =>
     return n >= MIN_8H_READINGS ? sum / n : null
   })
 
-// Daily maximum 8-hour average: the greatest valid average that ends in the
-// day, valid with at least 18 valid averages.
 export const dailyMaxEightHour = (
   values: (number | null)[],
   startMs: number,
@@ -378,8 +355,6 @@ export const dailyVerdict = (
 
 type Derivation = { verdict: Verdict; limit: Limit | null; daily?: Daily[] }
 
-// The kind of verdict follows the averaging hours of the chosen limit: 1, 8, or
-// 24.
 export const judgeSeries = (
   pollutant: string,
   unit: string,
@@ -493,9 +468,6 @@ export const derive = (data: LoadedData): Derived => {
     const yearRows = new Map<number, HealthRow[]>(years.map(y => [y, []]))
     for (const raw of raws) {
       const values = toValues(raw.readings, data.startMs, hours)
-      // The limit judges each year, and a daily value never crosses a year, so
-      // the daily values come from the whole grid. The 8-hour average of the
-      // first hours of a year then sees the last hours of the year before.
       const whole = judgeSeries(
         raw.pollutant,
         raw.unit,
@@ -569,9 +541,6 @@ export const derive = (data: LoadedData): Derived => {
     stations.push({
       station,
       health: years.map(year => {
-        // A series with no reading in the year is not a failure of the station
-        // in that year, so the health leaves it out. A station with no reading
-        // at all keeps every series, and its health is 0.
         const rows = yearRows.get(year)!
         const active = rows.filter(r => r.reported > 0)
         const h = stationHealth(active.length > 0 ? active : rows)

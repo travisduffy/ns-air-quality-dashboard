@@ -14,8 +14,6 @@ const derived = derive(loadData(ROOT))
 
 const readJson = (path: string) => JSON.parse(readFileSync(path, 'utf8'))
 
-// The page reads these static files, so each file must hold the derived data,
-// key for key.
 test('the overview file equals the derived overview', () => {
   assert.deepEqual(
     readJson(join(PUBLIC, 'overview.json')),

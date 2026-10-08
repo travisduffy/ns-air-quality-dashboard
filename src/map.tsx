@@ -20,8 +20,22 @@ const SECTORS_URL = `${import.meta.env.BASE_URL}sectors.json`
 const PADDING_PX = 16
 const FIT_OPTIONS = { padding: PADDING_PX, keepOnResize: true }
 const CHOOSER_MARGIN_PX = 8
+const ZOOM_FLOOR_RATIO = 0.75
+const DRAG_DEAD_ZONE_PX = 4
+const ZOOM_STEP = 2
+const KEY_PAN_PX = 80
+const KEY_PAN: Record<string, [number, number]> = {
+  ArrowLeft: [1, 0],
+  ArrowRight: [-1, 0],
+  ArrowUp: [0, 1],
+  ArrowDown: [0, -1],
+}
+const KEY_ZOOM: Record<string, number> = {
+  '+': ZOOM_STEP,
+  '=': ZOOM_STEP,
+  '-': 1 / ZOOM_STEP,
+}
 
-// The sector name is "Kings, NS", and the people say "Kings County".
 const getCountyLabel = (county: string) =>
   `${county.replace(/, NS$/, '')} County`
 
@@ -51,6 +65,15 @@ const getNovaScotiaBox = (engine: MapEngine) => {
   return box
 }
 
+const getBoxScale = (box: Box, width: number, height: number) =>
+  Math.min(
+    Math.max(1, width - 2 * PADDING_PX) / (box[2] + 1 - box[0]),
+    Math.max(1, height - 2 * PADDING_PX) / (box[3] + 1 - box[1])
+  )
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value))
+
 type MapViewProps = {
   overview: Overview
   station: string | null
@@ -74,7 +97,7 @@ export const MapView = ({
   const pointer = useRef({ x: 0, y: 0 })
   const [engine, setEngine] = useState<MapEngine | null>(null)
   const [error, setError] = useState<string | null>(null)
-  // True once the palette is on the canvas, so the raw bitmap never shows.
+  const [aspect, setAspect] = useState<string>()
   const [styled, setStyled] = useState(false)
   const [hover, setHover] = useState<string | null>(null)
   const [chooser, setChooser] = useState<Chooser | null>(null)
@@ -109,8 +132,6 @@ export const MapView = ({
   const onPickRef = useRef(onPick)
   const byCountyRef = useRef(byCounty)
 
-  // The engine callbacks read these refs, so they see the latest props. The
-  // effect runs before the others, so no effect reads a stale value.
   useEffect(() => {
     onPickRef.current = onPick
     byCountyRef.current = byCounty
@@ -142,18 +163,15 @@ export const MapView = ({
       return
     }
     const mapEngine = new MapEngine()
+    const input = new AbortController()
     let alive = true
-    let observer: ResizeObserver | null = null
-    let framing = 0
     mapEngine.setTickRate(60)
     mapEngine
       .loadMap({ bitmapUrl: MAP_URL, definitionUrl: SECTORS_URL, canvas })
-      .then(async () => {
+      .then(() => {
         if (!alive) {
           return
         }
-        // A county with no station is no target: it gets no pointer cursor,
-        // no tip, and no click.
         mapEngine.on(
           'sectorClick',
           (event: { sectorData: { name: string } }) => {
@@ -166,27 +184,155 @@ export const MapView = ({
           (event: { sectorData: { name: string } } | null) => {
             const name = event?.sectorData.name
             const live = name !== undefined && byCountyRef.current.has(name)
-            canvas.style.cursor = live ? 'pointer' : ''
+            canvas.dataset.live = String(live)
             setHover(live ? name : null)
           }
         )
+
         const box = getNovaScotiaBox(mapEngine)
-        const frame = () => {
-          mapEngine.fitBounds(box, FIT_OPTIONS)
+        const [minX, minY, maxX, maxY] = box
+        setAspect(`${maxX + 1 - minX} / ${maxY + 1 - minY}`)
+        mapEngine.fitBounds(box, FIT_OPTIONS)
+        const zoomPerScale =
+          (mapEngine.getView()?.zoom ?? 1) /
+          getBoxScale(box, canvas.clientWidth, canvas.clientHeight)
+
+        let engineSize = {
+          width: canvas.clientWidth,
+          height: canvas.clientHeight,
         }
-        // The engine reads the new canvas size in its own animation frame, so
-        // a later frame is the first one where project agrees with the canvas.
-        // The first call also frames at once, so the first paint is framed.
-        let observed = false
-        observer = new ResizeObserver(() => {
-          if (!observed) {
-            observed = true
-            frame()
+        mapEngine.onFrame(() => {
+          const { width, height } = engineSize
+          engineSize = {
+            width: canvas.clientWidth,
+            height: canvas.clientHeight,
           }
-          cancelAnimationFrame(framing)
-          framing = requestAnimationFrame(frame)
+          const view = mapEngine.getView()
+          if (view === null) {
+            return
+          }
+          const floor =
+            ZOOM_FLOOR_RATIO * zoomPerScale * getBoxScale(box, width, height)
+          const zoom = Math.max(view.zoom, floor)
+          const centerX = clamp(view.centerX, minX, maxX + 1)
+          const centerY = clamp(view.centerY, minY, maxY + 1)
+          if (
+            zoom !== view.zoom ||
+            centerX !== view.centerX ||
+            centerY !== view.centerY
+          ) {
+            mapEngine.setView({ centerX, centerY, zoom })
+          }
         })
-        observer.observe(canvas)
+
+        const panBy = (dx: number, dy: number) => {
+          const view = mapEngine.getView()
+          if (view === null) {
+            return
+          }
+          const scale = view.zoom / zoomPerScale
+          mapEngine.setView({
+            centerX: view.centerX - dx / scale,
+            centerY: view.centerY - dy / scale,
+          })
+        }
+        const zoomAt = (factor: number, x: number, y: number) => {
+          const view = mapEngine.getView()
+          if (view === null) {
+            return
+          }
+          mapEngine.setView({ zoom: view.zoom * factor })
+          const zoom = mapEngine.getView()?.zoom ?? view.zoom
+          const shift = zoomPerScale * (1 / view.zoom - 1 / zoom)
+          mapEngine.setView({
+            centerX: view.centerX + (x - canvas.clientWidth / 2) * shift,
+            centerY: view.centerY + (y - canvas.clientHeight / 2) * shift,
+          })
+        }
+
+        const { signal } = input
+        let drag: { x: number; y: number; left: boolean } | null = null
+        const endDrag = () => {
+          drag = null
+          delete canvas.dataset.dragging
+        }
+        canvas.addEventListener(
+          'pointerdown',
+          event => {
+            if (event.pointerType === 'touch' || event.button > 1) {
+              return
+            }
+            drag = {
+              x: event.clientX,
+              y: event.clientY,
+              left: event.button === 0,
+            }
+          },
+          { signal }
+        )
+        canvas.addEventListener(
+          'pointermove',
+          event => {
+            if (drag === null) {
+              return
+            }
+            if ((event.buttons & (drag.left ? 1 : 4)) === 0) {
+              endDrag()
+              return
+            }
+            const dx = event.clientX - drag.x
+            const dy = event.clientY - drag.y
+            if (canvas.dataset.dragging === undefined) {
+              if (Math.hypot(dx, dy) <= DRAG_DEAD_ZONE_PX) {
+                return
+              }
+              canvas.dataset.dragging = 'true'
+              if (drag.left) {
+                canvas.setPointerCapture(event.pointerId)
+              }
+            }
+            if (drag.left) {
+              panBy(dx, dy)
+            }
+            drag.x = event.clientX
+            drag.y = event.clientY
+          },
+          { signal }
+        )
+        canvas.addEventListener('pointerup', endDrag, { signal })
+        canvas.addEventListener('pointercancel', endDrag, { signal })
+        canvas.addEventListener(
+          'dblclick',
+          event => {
+            event.preventDefault()
+            const rect = canvas.getBoundingClientRect()
+            zoomAt(
+              ZOOM_STEP,
+              event.clientX - rect.left,
+              event.clientY - rect.top
+            )
+          },
+          { signal }
+        )
+        canvas.addEventListener(
+          'keydown',
+          event => {
+            if (event.ctrlKey || event.metaKey || event.altKey) {
+              return
+            }
+            const pan = KEY_PAN[event.key]
+            const factor = KEY_ZOOM[event.key]
+            if (pan !== undefined) {
+              panBy(pan[0] * KEY_PAN_PX, pan[1] * KEY_PAN_PX)
+            } else if (factor !== undefined) {
+              zoomAt(factor, canvas.clientWidth / 2, canvas.clientHeight / 2)
+            } else {
+              return
+            }
+            event.preventDefault()
+          },
+          { signal }
+        )
         setEngine(mapEngine)
       })
       .catch((reason: unknown) => {
@@ -197,9 +343,7 @@ export const MapView = ({
       })
     return () => {
       alive = false
-      cancelAnimationFrame(framing)
-      observer?.disconnect()
-      // A rerun of the effect, as in StrictMode, needs the state reset.
+      input.abort()
       setEngine(null)
       setStyled(false)
       mapEngine.destroy()
@@ -217,8 +361,6 @@ export const MapView = ({
         getCountyColor(name, byCountyRef.current.get(name)?.verdict)
       )
     }
-    // The engine draws in its own animation frame. Show the canvas two frames
-    // after the colors, so the first frame on screen is a styled one.
     let second = 0
     const first = requestAnimationFrame(() => {
       second = requestAnimationFrame(() => setStyled(true))
@@ -229,7 +371,6 @@ export const MapView = ({
     }
   }, [engine, counties])
 
-  // The chooser takes the focus when it opens, and gives it back on close.
   useEffect(() => {
     if (chooser !== null) {
       chooserRef.current?.querySelector('button')?.focus()
@@ -268,7 +409,6 @@ export const MapView = ({
     onHoverRef.current = onHover
   })
 
-  // The tiles of the county under the pointer or the focus show as hot.
   const [focused, setFocused] = useState<string | null>(null)
   const hotCounty = hover ?? focused
   useEffect(() => {
@@ -287,6 +427,8 @@ export const MapView = ({
       <div
         className="map-frame"
         ref={frameRef}
+        style={{ aspectRatio: aspect }}
+        onContextMenu={event => event.preventDefault()}
         onPointerMove={event => {
           const box = event.currentTarget.getBoundingClientRect()
           moveTip(event.clientX - box.left, event.clientY - box.top)
@@ -303,7 +445,8 @@ export const MapView = ({
           ref={canvasRef}
           className="map-canvas"
           role="img"
-          aria-label="Map of the Maritimes, Nova Scotia in view. The list below the map holds each county with a station."
+          tabIndex={0}
+          aria-label="Map of Nova Scotia. The list below the map holds each county with a station."
         />
         {hovered !== undefined && chooser === null && (
           <div

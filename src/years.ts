@@ -7,12 +7,9 @@ import type {
 } from '../scripts/derive.ts'
 import { yearHours } from '../scripts/time.ts'
 
-// The newest year is the one that the page shows first.
 export const getDefaultYear = (overview: Overview) =>
   overview.years[overview.years.length - 1]!
 
-// One year of one series: its highest value as a share of the limit, or null
-// when it has none. The year with no reading has none, and it is missing.
 export type YearPoint = {
   year: number
   ratio: number | null
@@ -54,8 +51,6 @@ export const getRatio = (series: SeriesOverview, year: number) => {
   return verdict.maxValue / series.limit.value
 }
 
-// The stations as one year shows them: each series with its counts and its
-// verdict of that year, and the ten-year points for the strip.
 export const getYearStations = (
   overview: Overview,
   year: number

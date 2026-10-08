@@ -1,5 +1,3 @@
-// The limit chosen for each pollutant. The value, unit, quote, and URL come
-// from data/limits.json at start.
 export type LimitChoice = {
   pollutant: string
   framework: string

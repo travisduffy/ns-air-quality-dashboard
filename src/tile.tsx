@@ -8,13 +8,11 @@ import {
 import { count, num, shareText } from './format.ts'
 import type { YearPoint, YearSeries } from './years.ts'
 
-// Room above the limit tick, so that a peak above the limit stays on the bar.
 const SCALE_HEADROOM = 1.1
 
 export const findSeries = (station: Station, pollutant: string) =>
   station.series.find(s => s.pollutant === pollutant)
 
-// The highest value as a share of the limit, or null when there is none.
 const getPeakRatio = (series: SeriesSummary) => {
   const verdict = series.verdict
   if (verdict.kind === 'none' || verdict.maxValue === null) {
@@ -24,8 +22,6 @@ const getPeakRatio = (series: SeriesSummary) => {
   return verdict.maxValue / verdict.limit.value
 }
 
-// One maximum for all tiles and all years of a pollutant, so that bars compare
-// by length, and the bar of a year matches the cell of that year in the strip.
 export const getScaleMax = (stations: Station[], pollutant: string) => {
   let top = 1
   for (const station of stations) {
@@ -82,9 +78,6 @@ type YearStripProps = {
   scaleMax: number
 }
 
-// One cell for each year. The height is the yearly peak as a share of the
-// limit, on the scale of the bar above. A year with no reading is an empty,
-// dashed cell, never a zero.
 const YearStrip = ({ points, year, scaleMax }: YearStripProps) => {
   const first = points[0]?.year
   const last = points[points.length - 1]?.year

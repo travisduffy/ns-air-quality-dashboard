@@ -4,7 +4,6 @@ import { dirname, join } from 'node:path'
 
 const ROOT = join(import.meta.dirname, '..')
 
-// The most rows that the source gives in one page.
 const PAGE_SIZE = 50_000
 const ATTEMPTS = 3
 
@@ -44,10 +43,6 @@ const pageUrl = (id: string, origin: string, since: string, page: number) =>
   `${origin}/resource/${id}.json?$where=date_time%20%3E%3D%20'${encodeURIComponent(since)}'` +
   `&$order=%3Aid&$limit=${PAGE_SIZE}&$offset=${page * PAGE_SIZE}`
 
-// Download the catalog, the metadata of each dataset, and every page of rows
-// from the stamp `since` on. The record lists the datasets and `since`, and
-// this script writes it again with the pages, the sizes, and the hashes that
-// it fetched.
 const main = async () => {
   const path = join(ROOT, 'data/fetch-record.json')
   const old = JSON.parse(readFileSync(path, 'utf8')) as {
@@ -74,7 +69,6 @@ const main = async () => {
       bytes: result.bytes.length,
       sha256,
     })
-    // A source can serve new bytes later, such as a corrected reading.
     const known = before.get(entry.file)
     if (known !== undefined && known !== sha256) {
       changed++

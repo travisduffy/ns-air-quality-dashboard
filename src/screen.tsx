@@ -4,8 +4,6 @@ import {
   getSeriesVerdict,
   getStationVerdict,
 } from './stations.ts'
-// The map styles load with the page, so the map frame holds its size while
-// the map code loads.
 import './map.css'
 import { Footer, Health, Readings } from './panels.tsx'
 import './screen.css'
@@ -23,9 +21,6 @@ import {
 
 const DEFAULT_POLLUTANT = 'PM2.5'
 
-// The map holds three.js, the largest part of the bundle. It loads in its own
-// chunk, so the tiles show before it. A failed load shows in the map frame and
-// leaves the rest of the page up.
 const MapView = lazy(() =>
   import('./map.tsx')
     .then(module => ({ default: module.MapView }))
@@ -43,7 +38,6 @@ const MapView = lazy(() =>
     })
 )
 
-// The pollutants of all stations, in the order that the data lists them.
 const getPollutants = (overview: DashboardData['overview']) => {
   const found = new Map<string, string>()
   for (const station of overview.stations) {
@@ -134,10 +128,6 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
 
   const close = () => setOpen(false)
 
-  // The readings open in the data panel, in place of the tiles, and the
-  // focus moves to their heading. On a wide screen only the panel scrolls. A
-  // switch of station inside the readings keeps the focus where it is, so the
-  // arrow keys can step through the station select.
   useEffect(() => {
     if (!open) {
       return
@@ -149,9 +139,6 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
     headingRef.current?.focus({ preventScroll: true })
   }, [open])
 
-  // The focus goes back to the control that opened the readings. The tiles
-  // stay mounted, hidden, while the readings show, so a tile can take the
-  // focus back once this render shows it again.
   useEffect(() => {
     if (!open && trigger.current?.isConnected) {
       trigger.current.focus()
@@ -163,8 +150,6 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
       return
     }
 
-    // The close of the detail sets state only, so the stale copy of it that
-    // this effect holds is safe. An open select keeps its own Escape.
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement
       if (event.key === 'Escape' && target.closest('select, input') === null) {

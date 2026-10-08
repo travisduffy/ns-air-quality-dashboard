@@ -1,12 +1,9 @@
 import type { SeriesSummary } from '../scripts/derive.ts'
 import type { YearStation } from './years.ts'
 
-// A series with no reading in the year has no verdict: 'nodata'.
 export type Verdict = 'over' | 'within' | 'none' | 'nodata'
 export type Station = YearStation
 
-// Each station sits in one county of the Maritimes bitmap; the names are the
-// sector names of its definition file.
 export const STATION_COUNTY: Record<string, string> = {
   Halifax: 'Halifax, NS',
   'Halifax Johnston': 'Halifax, NS',
@@ -31,18 +28,14 @@ export const getWorstVerdict = (verdicts: Verdict[]) =>
     'nodata'
   )
 
-// The colors of the map: a county with a station takes its verdict, and the
-// others take a tone for their place.
-export const VERDICT_COLOR: Record<Verdict | 'idle' | 'outside', string> = {
+export const VERDICT_COLOR: Record<Verdict | 'idle', string> = {
   over: '#d9534f',
   within: '#4caf6a',
   none: '#e0b43c',
   nodata: '#d9cfc0',
   idle: '#c9d3d9',
-  outside: '#7f8c95',
 }
 
-// The water of the map frame, which the sea sector of the bitmap takes.
 export const SEA_COLOR = '#aebfca'
 
 export const VERDICT_MARK: Record<Verdict, string> = {
@@ -82,20 +75,12 @@ export const getCountyColor = (
   county: string,
   verdict: Verdict | undefined
 ) => {
-  // The bitmap paints the sea white and the land past the map black. Both take
-  // the color of the water of the frame.
-  if (county === 'Sea' || county === 'Outside the map') {
-    return SEA_COLOR
-  }
   if (!isNovaScotia(county)) {
-    return VERDICT_COLOR.outside
+    return SEA_COLOR
   }
   return verdict === undefined ? VERDICT_COLOR.idle : VERDICT_COLOR[verdict]
 }
 
-// The verdict of each county that has a station, and the first station of each
-// county in the given order. A station with no readings in the year gives way
-// to the next station of its county that has some.
 export const getCountyVerdicts = (
   stations: { station: string; verdict: Verdict }[]
 ) => {

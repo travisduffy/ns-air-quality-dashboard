@@ -9,8 +9,6 @@ export default defineConfig({
   build: {
     rolldownOptions: {
       output: {
-        // three.js is most of the map chunk. A chunk of its own stays under
-        // the size limit of the build, and it loads in parallel with the map.
         codeSplitting: {
           groups: [{ name: 'three', test: /node_modules[\\/]three[\\/]/ }],
         },

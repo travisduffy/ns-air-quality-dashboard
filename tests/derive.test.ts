@@ -28,9 +28,6 @@ const limit = (value: number, unit = 'ppb'): Limit => ({
   converted: false,
 })
 
-// Fixture: one value per hour from START. Index 0 is the stamp
-// 2025-01-01T00:00, which closes the day 2024-12-31, so the indexes 1 to 24 are
-// the 24 hours of the day 2025-01-01.
 const dayWith = (readings: number, value: number) => {
   const v: (number | null)[] = new Array(25).fill(null)
   for (let i = 1; i <= readings; i++) v[i] = value
@@ -105,8 +102,6 @@ test('the hours before the window start count as missing', () => {
 })
 
 test('a daily maximum needs 18 valid 8-hour averages in a day', () => {
-  // 24 readings of the day 2025-01-01 give a valid average at each hour from
-  // the 6th reading on.
   const full = dayWith(24, 70)
   const withAverages = dailyMaxEightHour(full, START, limit(60))
   assert.deepEqual(withAverages[1], {
@@ -115,7 +110,6 @@ test('a daily maximum needs 18 valid 8-hour averages in a day', () => {
     readings: 24,
     verdict: 'over',
   })
-  // Readings only in the hours 1 to 17 give too few valid averages.
   const sparse = dailyMaxEightHour(dayWith(17, 70), START, limit(60))
   assert.partialDeepStrictEqual(sparse[1], {
     value: null,
@@ -177,9 +171,6 @@ test('station health sums the series and names the pollutant of the longest outa
   })
 })
 
-// The expected values below come from a second route: python3 straight from
-// the raw pages, written apart from the loader, with the same four corrections
-// that the loader lists.
 const derived = derive(loadData(ROOT))
 
 const find = (station: string, pollutant: string, year = 2025) =>
@@ -321,7 +312,6 @@ test('the health of Sydney in 2025 sums from its series', () => {
 })
 
 test('the health of a station leaves out a series with no reading in the year', () => {
-  // Aylesford NO, NO2, and NOX stopped in 2017.
   const stations = getYearStations(derived.overview, 2025)
   const aylesford = stations.find(s => s.station === 'Aylesford')!
   assert.equal(aylesford.series.length, 5)
@@ -330,7 +320,6 @@ test('the health of a station leaves out a series with no reading in the year', 
     aylesford.health.reported,
     find('Aylesford', 'O3').reported + find('Aylesford', 'PM2.5').reported
   )
-  // A station with no reading at all keeps every series, and its health is 0.
   const halifax = stations.find(s => s.station === 'Halifax')!
   assert.equal(halifax.health.expected, 7 * 8760)
   assert.equal(halifax.health.reported, 0)
@@ -345,7 +334,6 @@ test('earlier years of Sydney CO come from the same raw pages', () => {
     start: '2019-07-05T17:00:00',
     end: '2019-07-18T21:00:00',
   })
-  // The stamps 2016-01-02T00:00:59 and the like read as the hour.
   const hours = derived.readings
     .get(readingsKey('Sydney', 2016))!
     .series.find(x => x.pollutant === 'CO')!.values
@@ -379,14 +367,11 @@ test('the misspelled station name of Aylesford O3 in 2017 is read as Aylesford',
 })
 
 test('the rows of another pollutant in the Lake Major SO2 dataset are left out', () => {
-  // 2023 holds one hour of sulphur dioxide. The 8,760 rows that the dataset
-  // labels O3 do not reach the ozone of Lake Major, which has its own dataset.
   assert.equal(find('Lake Major', 'SO2', 2023).reported, 1)
   assert.equal(find('Lake Major', 'O3', 2023).reported, 8622)
 })
 
 test('two different values for one hour leave that hour missing', () => {
-  // Lake Major NO has two values at 2018-12-31T00:00, 1.6 and 0.2.
   const r = derived.readings
     .get(readingsKey('Lake Major', 2018))!
     .series.find(x => x.pollutant === 'NO')!

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { SeriesSummary } from '../scripts/derive.ts'
 import {
+  SEA_COLOR,
   STATION_COUNTY,
   VERDICT_COLOR,
   VERDICT_MARK,
@@ -53,16 +54,13 @@ test('two stations of one county merge, and the first one stays', () => {
   })
 })
 
-test('a county with no station is neutral, and land outside is muted', () => {
+test('a county with no station is neutral, and land outside Nova Scotia takes the water color', () => {
   assert.equal(getCountyColor('Kings, NS', 'over'), VERDICT_COLOR.over)
   assert.equal(getCountyColor('Kings, NS', 'within'), VERDICT_COLOR.within)
   assert.equal(getCountyColor('Kings, NS', 'none'), VERDICT_COLOR.none)
   assert.equal(getCountyColor('Colchester, NS', undefined), VERDICT_COLOR.idle)
-  assert.equal(
-    getCountyColor('Charlotte, NB', undefined),
-    VERDICT_COLOR.outside
-  )
-  assert.equal(new Set(Object.values(VERDICT_COLOR)).size, 6)
+  assert.equal(getCountyColor('Charlotte, NB', undefined), SEA_COLOR)
+  assert.equal(new Set(Object.values(VERDICT_COLOR)).size, 5)
 })
 
 test('one series is over, within, or has no limit', () => {

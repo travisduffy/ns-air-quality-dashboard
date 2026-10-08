@@ -21,8 +21,6 @@ export type RawSeries = {
   pollutant: string
   unit: string
   datasetId: string
-  // Epoch ms of the stamp read as a naive time (UTC), to the reading. A
-  // missing hour has no entry.
   readings: Map<number, number>
 }
 
@@ -37,7 +35,6 @@ export type LoadedData = {
   series: RawSeries[]
   limits: Map<string, ChosenLimit>
   minCompleteHours: number
-  // One sentence for each correction that the loader made to the source rows.
   corrections: string[]
 }
 
@@ -52,15 +49,10 @@ type FileEntry = {
   sha256: string
 }
 
-// A station name that the source misspells in one dataset. Each entry is read
-// as the station on the right. A change here is a decision about the data, and
-// the page lists it under About this data.
 export const STATION_ALIASES: Record<string, string> = {
   Alyesford: 'Aylesford',
 }
 
-// The pollutants that the name of a dataset lists in its parentheses, such as
-// "(NOx, NO2, NO)", in upper case. Null when the name lists none.
 export const datasetPollutants = (name: string | null | undefined) => {
   const found = /\(([^)]*)\)/.exec(name ?? '')
   if (found === null) return null
@@ -93,8 +85,6 @@ const correctionText = (c: Correction) => {
     : `The dataset "${c.dataset}" lists ${hours} ${when} under the pollutant ${c.from}, which the dataset does not hold. These rows are left out, and the hours show as missing.`
 }
 
-// The two spellings of the PM2.5 unit name one unit. Only the display label is
-// normalized.
 export const normalizeUnit = (unit: string) => unit.replace(/[µμ]/g, 'u')
 
 export const parseStamp = (stamp: unknown, where: string) => {
@@ -104,8 +94,6 @@ export const parseStamp = (stamp: unknown, where: string) => {
   ) {
     throw new Error(`${where}: bad date_time ${JSON.stringify(stamp)}`)
   }
-  // A few seconds after the hour read as the hour. The loader lists each such
-  // row as a correction.
   const ms = stampMs(stamp.slice(0, 14) + '00:00')
   if (Number.isNaN(ms)) throw new Error(`${where}: bad date_time ${stamp}`)
   return ms
@@ -165,9 +153,6 @@ const loadLimits = (root: string) => {
   return { limits, minCompleteHours: minHours }
 }
 
-// Read the fetch record and the raw pages under root. Every page is checked
-// against the size and hash of the record, and every row is validated. A bad
-// row or a repeat that differs throws.
 export const loadData = (root: string): LoadedData => {
   const record = readJson(join(root, 'data', 'fetch-record.json')) as {
     since: string
@@ -186,8 +171,6 @@ export const loadData = (root: string): LoadedData => {
   let licence: { name: string; url: string } | null = null
   const seriesMap = new Map<string, RawSeries>()
   let endMs = -Infinity
-  // The raw text of each row by dataset, series, and hour, to tell an
-  // identical repeat from one that differs.
   const seen = new Map<string, string>()
   const conflicted = new Set<string>()
   const corrections = new Map<string, Correction>()
@@ -302,8 +285,6 @@ export const loadData = (root: string): LoadedData => {
       const seenKey = `${id}\u0000${key}\u0000${ms}`
       const before = seen.get(seenKey)
       if (before !== undefined) {
-        // Two different values for one hour: neither is the true one, so the
-        // hour is missing.
         if (before !== text && !conflicted.has(seenKey)) {
           conflicted.add(seenKey)
           s.readings.delete(ms)

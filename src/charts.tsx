@@ -21,13 +21,9 @@ const OVER = '#b3261e'
 const WITHIN = '#2e7d32'
 const MISSING = '#5b4a00'
 
-// The fixed chart heights. A skeleton takes the same height, so nothing moves
-// when the chart replaces it.
 export const DAILY_HEIGHT = 200
 export const HOURLY_HEIGHT = 190
 
-// Measure before the first paint, so that a new chart never draws at a guessed
-// width and then jumps.
 const useWidth = () => {
   const ref = useRef<HTMLDivElement | null>(null)
   const [width, setWidth] = useState(320)
@@ -45,7 +41,6 @@ const useWidth = () => {
   return [ref, width] as const
 }
 
-// A domain is the range of stamps in a view, first and last stamp included.
 type Domain = { t0: number; t1: number }
 type Axis = { lo: number; hi: number }
 type Scale = {
@@ -68,7 +63,6 @@ const niceTop = (v: number) => {
   return 10 * p
 }
 
-// The axis always holds the limit, so the verdict can be read off the chart.
 const yAxis = (values: number[], limit: number | null) => {
   const all = limit === null ? values : [...values, limit]
   if (all.length === 0) {
@@ -135,8 +129,6 @@ type FrameProps = {
 
 const Frame = (p: FrameProps) => {
   const { width, height, domain, axis, limit } = p
-  // The time axis starts where the hour of the first stamp starts, so that hour
-  // is visible.
   const time: Domain = { t0: hourSpan(domain.t0).start, t1: domain.t1 }
   const plotW = width - LEFT - RIGHT
   const plotH = height - TOP - AXIS - STRIP - 6
@@ -218,7 +210,6 @@ const Frame = (p: FrameProps) => {
           if (b < a) {
             return null
           }
-          // A missing stamp marks the hour that the stamp closes.
           const x0 = x(hourSpan(a).start)
           const w = Math.max(1, x(b) - x0)
           return (
@@ -249,8 +240,6 @@ export type HourlyProps = {
   height?: number
 }
 
-// One line per run of present hours. A missing hour ends the run, so no line
-// crosses a gap.
 export const HourlyChart = (p: HourlyProps) => {
   const [ref, width] = useWidth()
   const t0 = stampMs(p.start)
@@ -339,11 +328,8 @@ export type DailyProps = {
   domain: Domain
 }
 
-// A valid day is a marker with a shape for its verdict. An insufficient day is
-// a light band with no value.
 export const DailyChart = (p: DailyProps) => {
   const [ref, width] = useWidth()
-  // A day is in the view when one of its stamps is.
   const shown = p.days.filter(
     d =>
       dayStamps(d.day).first <= p.domain.t1 &&
@@ -451,8 +437,6 @@ export const DailyChart = (p: DailyProps) => {
   )
 }
 
-// The place of a chart while its readings load: the same box as the chart, with
-// no content for a screen reader.
 export const ChartSkeleton = (p: { height?: number }) => {
   return (
     <div

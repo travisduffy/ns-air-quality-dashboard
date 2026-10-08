@@ -14,18 +14,14 @@ type Overview = {
   stations: { station: string; health: YearHealth[] }[]
 }
 
-// The page opens on the newest year.
 const YEAR = 2025
 const healthOf = (overview: Overview, name: string, year = YEAR) =>
   overview.stations
     .find(s => s.station === name)!
     .health.find(h => h.year === year)!
 
-// The readings files sit under the base path of the site.
 const READINGS_ROUTE = '**/readings/**'
 
-// A second route to the rounded-down share: integer arithmetic on the counts,
-// never the float share.
 const floorShare = (reported: number, expected: number) =>
   `${(Math.floor((reported * 1000) / expected) / 10).toFixed(1)}%`
 
@@ -36,8 +32,6 @@ const getChartLabels = (page: Page) =>
       elements.map(element => element.getAttribute('aria-label') ?? '')
     )
 
-// The data panel shows the tiles first. A pick opens the readings and the
-// station health in its place.
 const openStation = async (page: Page, name: string) => {
   await page
     .locator(`[data-testid="c-tile"][data-station="${name}"] button`)
@@ -78,7 +72,6 @@ const checkScreen = async (page: Page, overview: Overview) => {
     expect(text).toContain(`${outage.start} to ${outage.end}`)
   }
 
-  // Fixed values counted from the raw files by a second route.
   const sydney = page.locator(
     '[data-testid="health-row"][data-station="Sydney"]'
   )
@@ -87,8 +80,6 @@ const checkScreen = async (page: Page, overview: Overview) => {
     '517 hours'
   )
 
-  // A broken line of more than one run, the strip of missing hours, and the
-  // limit line.
   const card = page.locator('[data-series="NO2"]')
   await expect(card.locator('svg[data-chart]')).toBeVisible()
   expect(await card.locator('[data-run]').count()).toBeGreaterThan(1)
@@ -121,8 +112,6 @@ for (const width of [1440, 390]) {
     const overview = (await response.json()) as Overview
     await checkScreen(page, overview)
 
-    // One layout: the data panel on the left and the map on the right half
-    // of a wide screen, and the map below the panel when stacked.
     const panel = (await page.locator('.c-panel').boundingBox())!
     const map = (await page.locator('.c-map').boundingBox())!
     if (width >= 900) {
@@ -186,9 +175,6 @@ test('a failed load of the map code leaves the tiles up', async ({ page }) => {
   await expect(page.getByTestId('c-tile')).toHaveCount(8)
 })
 
-// Sum every layout shift entry, also the ones that follow an input. That is
-
-// stricter than the CLS metric.
 const watchShifts = (page: Page) =>
   page.evaluate(() => {
     const target = window as unknown as { shift: number }
@@ -212,8 +198,6 @@ const waitForIdle = async (page: Page) => {
   await expect(page.locator('[data-skeleton]')).toHaveCount(0)
 }
 
-// A readings file is about 130 to 320 kB, so the page asks for one only when a
-// station is picked, and then only for the chosen year.
 test('no readings load before a station is picked', async ({ page }) => {
   const asked: string[] = []
   page.on('request', request => {
@@ -263,9 +247,6 @@ test('the arrow keys step through the station select', async ({ page }) => {
   await expect(picker).toBeFocused()
 })
 
-// A switch between two stations with the same pollutants: the cards keep their
-
-// place, the charts show a skeleton, and the page does not scroll.
 for (const width of [1440, 390]) {
   test(`station switch at ${width} px keeps the screen still`, async ({
     page,
@@ -296,8 +277,6 @@ for (const width of [1440, 390]) {
     const shift = await page.evaluate(
       () => (window as unknown as { shift: number }).shift
     )
-    // On a narrow screen the new station can wrap a verdict to one more line,
-    // and the panel then scrolls its heading to the top.
     expect(shift).toBeLessThan(width >= 900 ? 0.01 : 0.1)
     if (width >= 900) {
       const scrolledPx = await page.evaluate(() => window.scrollY)
@@ -427,7 +406,6 @@ test('each tile has a strip of ten cells, and a year with no readings is missing
     '[data-testid="c-tile"][data-station="Halifax Johnston"] .c-years li'
   )
   await expect(strip).toHaveCount(10)
-  // The station began in 2018, so 2016 and 2017 are missing, in text too.
   await expect(strip.nth(0)).toHaveAttribute('data-state', 'missing')
   await expect(strip.nth(1)).toHaveAttribute('data-state', 'missing')
   await expect(strip.nth(2)).not.toHaveAttribute('data-state', 'missing')
@@ -483,4 +461,133 @@ test('a series with no reading in the year shows as missing in the readings', as
     'No readings in 2016'
   )
   await expect(page.locator('svg[data-chart]')).toHaveCount(0)
+})
+
+const NS_BOX = [179, 192, 1867, 1551]
+const PICTOU_PIXEL = [1142, 797]
+const NEW_BRUNSWICK_PIXEL = [400, 500]
+const WATER_RGB = [0xae, 0xbf, 0xca]
+
+const openMap = async (page: Page) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('./')
+  await expect(page.locator('.map-view[data-ready="true"]')).toBeVisible()
+  return (await page.locator('.map-canvas').boundingBox())!
+}
+
+const getHomePoint = (
+  canvas: { x: number; y: number; width: number; height: number },
+  [x, y]: number[]
+) => {
+  const [minX, minY, maxX, maxY] = NS_BOX
+  const scale = Math.min(
+    (canvas.width - 32) / (maxX + 1 - minX),
+    (canvas.height - 32) / (maxY + 1 - minY)
+  )
+  return {
+    x: canvas.x + canvas.width / 2 + (x + 0.5 - (minX + maxX + 1) / 2) * scale,
+    y: canvas.y + canvas.height / 2 + (y + 0.5 - (minY + maxY + 1) / 2) * scale,
+  }
+}
+
+const readPixels = async (
+  page: Page,
+  clip: { x: number; y: number; width: number; height: number }
+) => {
+  const png = await page.screenshot({ clip })
+  return page.evaluate(async base64 => {
+    const response = await fetch(`data:image/png;base64,${base64}`)
+    const bitmap = await createImageBitmap(await response.blob())
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
+    const context = canvas.getContext('2d')!
+    context.drawImage(bitmap, 0, 0)
+    return [...context.getImageData(0, 0, bitmap.width, bitmap.height).data]
+  }, png.toString('base64'))
+}
+
+const isWater = (rgba: number[], at: number) =>
+  WATER_RGB.every((value, i) => Math.abs(rgba[at + i] - value) <= 3)
+
+const getWaterShare = async (
+  page: Page,
+  canvas: { x: number; y: number; width: number; height: number }
+) => {
+  const rgba = await readPixels(page, canvas)
+  let water = 0
+  for (let at = 0; at < rgba.length; at += 4) {
+    if (isWater(rgba, at)) {
+      water++
+    }
+  }
+  return water / (rgba.length / 4)
+}
+
+const expectCountyAt = async (
+  page: Page,
+  point: { x: number; y: number },
+  county: string
+) => {
+  await page.mouse.move(point.x, point.y)
+  await expect(page.getByTestId('map-tip')).toContainText(county)
+}
+
+test('a left drag pans the map and opens no county', async ({ page }) => {
+  const canvas = await openMap(page)
+  const start = getHomePoint(canvas, PICTOU_PIXEL)
+  const end = { x: start.x + 120, y: start.y + 60 }
+  await expectCountyAt(page, start, 'Pictou County')
+  await page.mouse.down()
+  await page.mouse.move(end.x, end.y, { steps: 8 })
+  await page.mouse.up()
+  await expect(page.getByTestId('map-chooser')).toHaveCount(0)
+  await expect(page.getByTestId('c-detail')).toHaveCount(0)
+  await page.mouse.move(canvas.x + 4, canvas.y + 4)
+  await expect(page.getByTestId('map-tip')).toHaveCount(0)
+  await expectCountyAt(page, end, 'Pictou County')
+})
+
+test('a right-click on the map has its default prevented', async ({ page }) => {
+  const canvas = await openMap(page)
+  await page.evaluate(() => {
+    const target = window as unknown as { prevented: boolean | null }
+    target.prevented = null
+    window.addEventListener('contextmenu', event => {
+      target.prevented = event.defaultPrevented
+    })
+  })
+  const point = getHomePoint(canvas, PICTOU_PIXEL)
+  await page.mouse.click(point.x, point.y, { button: 'right' })
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { prevented: boolean | null }).prevented
+    )
+  ).toBe(true)
+})
+
+test('a double-click zooms in about the cursor', async ({ page }) => {
+  const canvas = await openMap(page)
+  const point = getHomePoint(canvas, PICTOU_PIXEL)
+  const before = await getWaterShare(page, canvas)
+  await page.mouse.dblclick(point.x, point.y)
+  await expect
+    .poll(() => getWaterShare(page, canvas))
+    .toBeLessThan(before * 0.8)
+  await page.mouse.move(canvas.x + 4, canvas.y + 4)
+  await expectCountyAt(page, point, 'Pictou County')
+})
+
+test('land of New Brunswick on screen takes the water color', async ({
+  page,
+}) => {
+  const canvas = await openMap(page)
+  const point = getHomePoint(canvas, NEW_BRUNSWICK_PIXEL)
+  const rgba = await readPixels(page, {
+    x: Math.round(point.x),
+    y: Math.round(point.y),
+    width: 1,
+    height: 1,
+  })
+  expect(isWater(rgba, 0)).toBe(true)
+  await page.mouse.move(point.x, point.y)
+  await expect(page.getByTestId('map-tip')).toHaveCount(0)
 })

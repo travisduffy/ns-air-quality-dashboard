@@ -90,8 +90,6 @@ const Verdict = ({ s }: { s: SeriesSummary }) => {
 const SeriesCard = (props: {
   station: string
   summary: SeriesSummary
-  // Undefined while the readings of the station load. The text shows at once,
-  // and each chart is a skeleton.
   readings: SeriesReadings | undefined
   start: string | undefined
   domain: { t0: number; t1: number }
@@ -384,8 +382,6 @@ export const Health = (props: {
                   <button
                     type="button"
                     onClick={event => {
-                      // The row onClick above also picks the station. Stop the
-                      // click here so that it does not pick the station twice.
                       event.stopPropagation()
                       props.onPick(s.station)
                     }}

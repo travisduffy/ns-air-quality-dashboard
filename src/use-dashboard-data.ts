@@ -5,19 +5,13 @@ import { useEffect, useMemo, useState } from 'react'
 
 export type DashboardData = {
   overview: Overview
-  // The year that the tiles, the map, and the readings show.
   year: number
   setYear: (y: number) => void
-  // The stations as the year shows them.
   stations: YearStation[]
-  // Null until the first pick, so no readings load before a station is asked
-  // for.
   station: string | null
   setStation: (s: string) => void
-  // A month of the year, or '' for the whole year.
   month: string
   setMonth: (m: string) => void
-  // The readings of the picked station in the year, undefined while they load.
   data: StationReadings | undefined
   failed: string | null
 }
@@ -27,17 +21,12 @@ export type DashboardState =
   | { kind: 'failed'; text: string }
   | { kind: 'ready'; dashboard: DashboardData }
 
-// The one source of the data for every layout: the overview, the year, the
-// readings of the picked station in that year, the picked station, and the
-// month.
 export const useDashboardData = () => {
   const [overview, setOverview] = useState<Overview | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [station, setStation] = useState<string | null>(null)
   const [month, setMonth] = useState('')
   const [pickedYear, setPickedYear] = useState<number | null>(null)
-  // Each station and year loads once. A later visit shows its readings in the
-  // first frame, with no request.
   const [byKey, setByKey] = useState<Record<string, StationReadings>>({})
   const [readError, setReadError] = useState<{
     key: string
@@ -65,8 +54,6 @@ export const useDashboardData = () => {
     if (station === null || overview === null || data !== undefined) {
       return
     }
-    // A click on the next station or year aborts this request, so a stale
-    // answer never lands.
     const controller = new AbortController()
     getReadings(station, year, controller.signal)
       .then(readings => {
@@ -85,7 +72,6 @@ export const useDashboardData = () => {
   }, [station, year, key, overview, data])
   const setYear = (y: number) => {
     setPickedYear(y)
-    // A month belongs to one year.
     setMonth('')
   }
   if (error !== null) {

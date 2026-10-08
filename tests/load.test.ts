@@ -33,8 +33,6 @@ const row = (stamp: string, average?: string) => {
   return r
 }
 
-// A fixture tree with one dataset: a fetch record, a metadata file, one page
-// of rows, and the real limits file.
 const fixture = (
   rows: Row[],
   since = '2025-01-01T00:00:00',

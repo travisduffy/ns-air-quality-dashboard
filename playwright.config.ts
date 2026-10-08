@@ -1,7 +1,5 @@
 import { defineConfig } from '@playwright/test'
 
-// The site lives under the base path of its Pages deploy, and each test
-// resolves its paths against it.
 const SITE_URL = 'http://127.0.0.1:4173/ns-air-quality-dashboard/'
 
 export default defineConfig({

@@ -8,17 +8,11 @@
 .map-frame {
   position: relative;
   width: 100%;
-  height: 56vh;
-  min-height: 280px;
-  max-height: 720px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--map-water);
 }
-/* The engine leaves the canvas clear outside the bitmap, so the water of the
-   frame shows through there. */
-/* A message of a failed load sits above the canvas, clear of the frame edge. */
 .map-frame .error {
   position: relative;
   margin: 12px;
@@ -30,8 +24,24 @@
   height: 100%;
   display: block;
   touch-action: none;
+  cursor: grab;
 }
-/* The tip follows the pointer, and it never takes the pointer itself. */
+.map-canvas[data-live='true'] {
+  cursor: pointer;
+}
+.map-canvas[data-dragging='true'] {
+  cursor: grabbing;
+}
+.map-canvas:focus-visible {
+  outline: 3px dashed var(--ink);
+  outline-offset: -3px;
+}
+.map-view[data-ready] .map-frame {
+  height: auto;
+  flex: none;
+  min-height: 240px;
+  max-height: min(720px, 70vh);
+}
 .map-tip {
   position: absolute;
   left: 0;
@@ -134,11 +144,11 @@
   gap: 4px;
 }
 @media (max-width: 600px) {
-  .map-frame {
-    height: 48vh;
+  .map-view[data-ready] .map-frame {
+    min-height: 200px;
+    max-height: 60vh;
   }
 }
-/* The canvas stays hidden until the palette is applied. */
 .map-view[data-ready='false'] .map-canvas {
   visibility: hidden;
 }
