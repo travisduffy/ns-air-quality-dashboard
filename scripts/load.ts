@@ -1,18 +1,9 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import type { Limit } from '../shared/contract.ts'
+import { msStamp, stampMs, yearOf } from '../shared/time.ts'
 import { chosenLimits } from './limit-choice.ts'
-import { msStamp, stampMs, yearOf } from './time.ts'
-
-export type Limit = {
-  value: number
-  unit: string
-  averagingPeriod: string
-  framework: string
-  url: string
-  officialValue: string
-  converted: boolean
-}
 
 export type ChosenLimit = { limit: Limit; averagingHours: number }
 
@@ -51,6 +42,45 @@ type FileEntry = {
 
 export const STATION_ALIASES: Record<string, string> = {
   Alyesford: 'Aylesford',
+}
+
+export const STATION_COUNTY: Record<string, string> = {
+  Halifax: 'Halifax, NS',
+  'Halifax Johnston': 'Halifax, NS',
+  'Lake Major': 'Halifax, NS',
+  Pictou: 'Pictou, NS',
+  Sydney: 'Cape Breton, NS',
+  'Port Hawkesbury': 'Inverness, NS',
+  Kentville: 'Kings, NS',
+  Aylesford: 'Kings, NS',
+}
+
+const readSectors = (root: string) => {
+  const sectors: Record<string, { name: string }> = JSON.parse(
+    readFileSync(join(root, 'public', 'sectors.json'), 'utf8')
+  )
+  return Object.values(sectors).map(s => s.name)
+}
+
+export const assignCounties = (
+  stations: string[],
+  sectors: string[],
+  table = STATION_COUNTY
+) => {
+  const counties: Record<string, string> = {}
+  for (const station of stations) {
+    const county = table[station]
+    if (county === undefined) {
+      throw new Error(`station ${station} has no county`)
+    }
+    if (!sectors.includes(county)) {
+      throw new Error(
+        `county ${county} of station ${station} is not a sector of sectors.json`
+      )
+    }
+    counties[station] = county
+  }
+  return counties
 }
 
 export const datasetPollutants = (name: string | null | undefined) => {
@@ -340,3 +370,9 @@ export const loadData = (root: string): LoadedData => {
       .map(correctionText),
   }
 }
+
+export const loadCounties = (root: string, data: LoadedData) =>
+  assignCounties(
+    [...new Set(data.series.map(s => s.station))],
+    readSectors(root)
+  )

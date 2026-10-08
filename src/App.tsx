@@ -1,4 +1,4 @@
-import { PROJECT } from '../scripts/derive.ts'
+import { PROJECT } from '../shared/contract.ts'
 import { Screen } from './screen.tsx'
 import { useDashboardData } from './use-dashboard-data.ts'
 

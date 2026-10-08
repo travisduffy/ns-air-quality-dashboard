@@ -1,109 +1,66 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import type { SeriesSummary } from '../scripts/derive.ts'
+import type { Overview, VerdictState } from '../shared/contract.ts'
 import {
   SEA_COLOR,
-  STATION_COUNTY,
   VERDICT_COLOR,
   VERDICT_MARK,
   VERDICT_WORD,
   getCountyColor,
-  getCountyVerdicts,
-  getSeriesVerdict,
-  getStationVerdict,
-  getWorstVerdict,
   isNovaScotia,
-  type Station,
 } from '../src/stations.ts'
+import { getYearCounties } from '../src/years.ts'
 
-const hourly = (overHours: number) =>
-  ({ verdict: { kind: 'hourly', overHours } }) as unknown as SeriesSummary
-const noLimit = { verdict: { kind: 'none' } } as unknown as SeriesSummary
+const overview: Overview = JSON.parse(
+  readFileSync(new URL('../public/overview.json', import.meta.url), 'utf8')
+)
 
-test('the station table puts each station in a county of Nova Scotia', () => {
-  for (const [station, county] of Object.entries(STATION_COUNTY)) {
-    assert.equal(isNovaScotia(county), true, station)
-  }
-})
-
-test('a county that holds a station takes the color of its verdict', () => {
-  for (const county of Object.values(STATION_COUNTY)) {
+test('each county of the data is a county of Nova Scotia', () => {
+  for (const { county } of overview.counties) {
+    assert.equal(isNovaScotia(county), true, county)
     assert.equal(getCountyColor(county, 'over'), VERDICT_COLOR.over)
   }
 })
 
-test('a county takes the worst verdict', () => {
-  assert.equal(getWorstVerdict([]), 'nodata')
-  assert.equal(getWorstVerdict(['none', 'within']), 'within')
-  assert.equal(getWorstVerdict(['within', 'over', 'none']), 'over')
-})
-
-test('two stations of one county merge, and the first one stays', () => {
-  const counties = getCountyVerdicts([
-    { station: 'Kentville', verdict: 'within' },
-    { station: 'Aylesford', verdict: 'over' },
-    { station: 'Pictou', verdict: 'none' },
-  ])
-  assert.deepEqual(counties.get('Kings, NS'), {
-    verdict: 'over',
-    first: 'Kentville',
-  })
-  assert.deepEqual(counties.get('Pictou, NS'), {
-    verdict: 'none',
-    first: 'Pictou',
-  })
+test('the counties of a year keep the order of the stations and the verdict of the data', () => {
+  const year = overview.years[0]!
+  const counties = getYearCounties(overview, year, 'PM2.5')
+  assert.deepEqual(
+    counties.map(c => c.county),
+    [...new Set(overview.stations.map(s => s.county))]
+  )
+  for (const county of counties) {
+    const data = overview.counties.find(c => c.county === county.county)!
+    const verdicts = data.verdicts.find(v => v.year === year)!
+    assert.equal(county.verdict, verdicts.pollutants['PM2.5'])
+    assert.deepEqual(county.stations, data.stations)
+  }
+  assert.throws(() => getYearCounties(overview, 1900, 'PM2.5'), /1900/)
 })
 
 test('a county with no station is neutral, and land outside Nova Scotia takes the water color', () => {
   assert.equal(getCountyColor('Kings, NS', 'over'), VERDICT_COLOR.over)
   assert.equal(getCountyColor('Kings, NS', 'within'), VERDICT_COLOR.within)
   assert.equal(getCountyColor('Kings, NS', 'none'), VERDICT_COLOR.none)
+  assert.equal(getCountyColor('Kings, NS', 'absent'), VERDICT_COLOR.absent)
   assert.equal(getCountyColor('Colchester, NS', undefined), VERDICT_COLOR.idle)
   assert.equal(getCountyColor('Charlotte, NB', undefined), SEA_COLOR)
-  assert.equal(new Set(Object.values(VERDICT_COLOR)).size, 5)
+  assert.equal(new Set(Object.values(VERDICT_COLOR)).size, 6)
 })
 
-test('one series is over, within, or has no limit', () => {
-  assert.equal(getSeriesVerdict(noLimit), 'none')
-  assert.equal(getSeriesVerdict(hourly(0)), 'within')
-  assert.equal(getSeriesVerdict(hourly(2)), 'over')
-})
-
-test('a series with no reading in the year has no verdict', () => {
-  const empty = { reported: 0, verdict: { kind: 'hourly', overHours: 0 } }
-  assert.equal(getSeriesVerdict(empty as unknown as SeriesSummary), 'nodata')
-  assert.equal(getWorstVerdict(['nodata', 'none']), 'none')
-  assert.equal(getWorstVerdict(['nodata', 'within']), 'within')
-})
-
-test('a county opens a station that has readings, not one with none', () => {
-  const counties = getCountyVerdicts([
-    { station: 'Halifax', verdict: 'nodata' },
-    { station: 'Halifax Johnston', verdict: 'within' },
-  ])
-  assert.deepEqual(counties.get('Halifax, NS'), {
-    verdict: 'within',
-    first: 'Halifax Johnston',
-  })
-})
-
-test('a station takes the worst verdict of its series', () => {
-  const station = (series: SeriesSummary[]) =>
-    ({ station: 'Pictou', series }) as Station
-  assert.equal(getStationVerdict(station([])), 'nodata')
-  assert.equal(getStationVerdict(station([noLimit, hourly(0)])), 'within')
-  assert.equal(getStationVerdict(station([hourly(0), hourly(1)])), 'over')
-})
-
-test('each verdict of a series has a word, a mark, and a color', () => {
-  const empty = {
-    reported: 0,
-    verdict: { kind: 'none' },
-  } as unknown as SeriesSummary
-  const verdicts = [noLimit, hourly(0), hourly(2), empty].map(getSeriesVerdict)
+test('each verdict has a word, a mark, and a color, and absent reads as the tile does', () => {
+  const verdicts: VerdictState[] = [
+    'over',
+    'within',
+    'none',
+    'nodata',
+    'absent',
+  ]
   for (const verdict of verdicts) {
     assert.ok(VERDICT_WORD[verdict], verdict)
     assert.ok(VERDICT_MARK[verdict], verdict)
     assert.ok(VERDICT_COLOR[verdict], verdict)
   }
+  assert.equal(VERDICT_WORD.absent, 'Not measured')
 })

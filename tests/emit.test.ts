@@ -5,12 +5,13 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { derive } from '../scripts/derive.ts'
 import { emitData } from '../scripts/emit.ts'
-import { loadData } from '../scripts/load.ts'
-import { yearHours } from '../scripts/time.ts'
+import { loadCounties, loadData } from '../scripts/load.ts'
+import { yearHours } from '../shared/time.ts'
 
 const ROOT = new URL('..', import.meta.url).pathname
 const PUBLIC = join(ROOT, 'public')
-const derived = derive(loadData(ROOT))
+const loaded = loadData(ROOT)
+const derived = derive(loaded, loadCounties(ROOT, loaded))
 
 const readJson = (path: string) => JSON.parse(readFileSync(path, 'utf8'))
 

@@ -1,15 +1,11 @@
-import type {
-  Outage,
-  SeriesReadings,
-  SeriesSummary,
-} from '../scripts/derive.ts'
+import type { Outage, SeriesReadings } from '../shared/contract.ts'
 import {
   HOUR_MS,
   monthStamps,
   monthsOf,
   stampMs,
   yearStamps,
-} from '../scripts/time.ts'
+} from '../shared/time.ts'
 import {
   ChartSkeleton,
   DAILY_HEIGHT,
@@ -18,7 +14,8 @@ import {
 } from './charts.tsx'
 import { count, hoursText, num, shareText } from './format.ts'
 import type { DashboardData } from './use-dashboard-data.ts'
-import type { YearStation } from './years.ts'
+import { VERDICT_WORD } from './stations.ts'
+import type { YearSeries, YearStation } from './years.ts'
 import { useMemo } from 'react'
 
 type Summary = YearStation
@@ -26,7 +23,7 @@ type Summary = YearStation
 const outageText = (o: Outage | null) =>
   o === null ? 'none' : `${hoursText(o.hours)}, ${o.start} to ${o.end}`
 
-const limitText = (s: SeriesSummary) => {
+const limitText = (s: YearSeries) => {
   const v = s.verdict
   if (v.kind === 'none') {
     return null
@@ -40,7 +37,7 @@ const limitText = (s: SeriesSummary) => {
   return `${num(v.limit.value)} ${v.limit.unit}, ${period}`
 }
 
-const Verdict = ({ s }: { s: SeriesSummary }) => {
+const Verdict = ({ s }: { s: YearSeries }) => {
   const v = s.verdict
   if (v.kind === 'none') {
     return (
@@ -49,39 +46,24 @@ const Verdict = ({ s }: { s: SeriesSummary }) => {
       </p>
     )
   }
-  if (v.kind === 'hourly') {
-    const over = v.overHours > 0
-    const high =
-      v.maxValue === null
-        ? ''
-        : ` Highest: ${num(v.maxValue)} ${s.unit} at ${v.maxAt}.`
+  const { verdict, over, judged, unit } = s.judgement
+  if (verdict === 'nodata') {
     return (
-      <p
-        className={over ? 'verdict over' : 'verdict within'}
-        data-verdict={over ? 'over' : 'within'}
-      >
-        <strong>{over ? 'Over the limit' : 'Within the limit'}:</strong>{' '}
-        {over
-          ? `${count(v.overHours)} of ${count(v.judgedHours)} hours above ${num(v.limit.value)} ${s.unit}.`
-          : `All ${count(v.judgedHours)} hours at or below ${num(v.limit.value)} ${s.unit}.`}
-        {high}
+      <p className="verdict nodata" data-verdict="nodata">
+        <strong>{VERDICT_WORD.nodata}.</strong>
       </p>
     )
   }
-  const over = v.overDays > 0
+  const limit = `${num(v.limit.value)} ${s.unit}`
+  const when = v.kind === 'hourly' ? `at ${v.maxAt}` : `on ${v.maxDay}`
   const high =
-    v.maxValue === null
-      ? ''
-      : ` Highest: ${num(v.maxValue)} ${s.unit} on ${v.maxDay}.`
+    v.maxValue === null ? '' : ` Highest: ${num(v.maxValue)} ${s.unit} ${when}.`
   return (
-    <p
-      className={over ? 'verdict over' : 'verdict within'}
-      data-verdict={over ? 'over' : 'within'}
-    >
-      <strong>{over ? 'Over the limit' : 'Within the limit'}:</strong>{' '}
-      {over
-        ? `${count(v.overDays)} of ${count(v.judgedDays)} days above ${num(v.limit.value)} ${s.unit}.`
-        : `All ${count(v.judgedDays)} days at or below ${num(v.limit.value)} ${s.unit}.`}
+    <p className={`verdict ${verdict}`} data-verdict={verdict}>
+      <strong>{VERDICT_WORD[verdict]}:</strong>{' '}
+      {verdict === 'over'
+        ? `${count(over)} of ${count(judged)} ${unit} above ${limit}.`
+        : `All ${count(judged)} ${unit} at or below ${limit}.`}
       {high}
     </p>
   )
@@ -89,7 +71,7 @@ const Verdict = ({ s }: { s: SeriesSummary }) => {
 
 const SeriesCard = (props: {
   station: string
-  summary: SeriesSummary
+  summary: YearSeries
   readings: SeriesReadings | undefined
   start: string | undefined
   domain: { t0: number; t1: number }

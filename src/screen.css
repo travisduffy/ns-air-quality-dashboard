@@ -157,9 +157,12 @@
   border-left-color: var(--within);
   border-left-style: solid;
 }
-.c-tile[data-verdict='none'],
-.c-tile[data-verdict='absent'] {
+.c-tile[data-verdict='none'] {
   border-left-color: #8a6d00;
+  border-left-style: dashed;
+}
+.c-tile[data-verdict='absent'] {
+  border-left-color: #bdb2a0;
   border-left-style: dashed;
 }
 .c-tile.hot,

@@ -1,101 +1,83 @@
 import type {
   Overview,
   SeriesOverview,
-  SeriesSummary,
   StationHealth,
-  Verdict,
-} from '../scripts/derive.ts'
-import { yearHours } from '../scripts/time.ts'
+  VerdictState,
+  YearSummary,
+} from '../shared/contract.ts'
 
 export const getDefaultYear = (overview: Overview) =>
   overview.years[overview.years.length - 1]!
 
 export type YearPoint = {
   year: number
+  verdict: VerdictState
   ratio: number | null
-  reported: number
-  expected: number
 }
 
-export type YearSeries = SeriesSummary & { points: YearPoint[] }
+export type YearSeries = Omit<SeriesOverview, 'years'> &
+  YearSummary & { points: YearPoint[] }
 
 export type YearStation = {
   station: string
+  county: string
+  verdict: VerdictState
+  verdicts: Record<string, VerdictState>
   health: StationHealth
   series: YearSeries[]
 }
 
-const getVerdict = (series: SeriesOverview, year: number): Verdict => {
-  const found = series.years.find(y => y.year === year)
+const findYear = <T extends { year: number }>(
+  items: T[],
+  year: number,
+  owner: string
+) => {
+  const found = items.find(item => item.year === year)
   if (found === undefined) {
-    throw new Error(`${series.pollutant} has no summary of ${year}`)
+    throw new Error(`${owner} has no summary of ${year}`)
   }
-  const verdict = found.verdict
-  if (verdict.kind === 'none' || series.limit === null) {
-    return { kind: 'none', reason: series.reason ?? '' }
-  }
-  return { ...verdict, limit: series.limit }
-}
-
-export const getRatio = (series: SeriesOverview, year: number) => {
-  const found = series.years.find(y => y.year === year)
-  const verdict = found?.verdict
-  if (
-    verdict === undefined ||
-    verdict.kind === 'none' ||
-    series.limit === null ||
-    verdict.maxValue === null
-  ) {
-    return null
-  }
-  return verdict.maxValue / series.limit.value
+  return found
 }
 
 export const getYearStations = (
   overview: Overview,
   year: number
-): YearStation[] => {
-  const expected = yearHours(year)
-  return overview.stations.map(station => {
-    const series = station.series.map((s): YearSeries => {
-      const found = s.years.find(y => y.year === year)
-      if (found === undefined) {
-        throw new Error(`${s.pollutant} has no summary of ${year}`)
-      }
-      return {
-        pollutant: s.pollutant,
-        label: s.label,
-        unit: s.unit,
-        datasetId: s.datasetId,
-        expected,
-        reported: found.reported,
-        missing: expected - found.reported,
-        reportedShare: found.reported / expected,
-        gapCount: found.gapCount,
-        longestOutage: found.longestOutage,
-        verdict: getVerdict(s, year),
-        points: s.years.map(y => ({
-          year: y.year,
-          ratio: getRatio(s, y.year),
-          reported: y.reported,
-          expected: yearHours(y.year),
-        })),
-      }
-    })
-    const health = station.health.find(h => h.year === year)
-    if (health === undefined) {
-      throw new Error(`${station.station} has no health of ${year}`)
-    }
+): YearStation[] =>
+  overview.stations.map(station => {
+    const verdicts = findYear(station.verdicts, year, station.station)
     return {
       station: station.station,
-      series,
-      health: {
-        expected: health.expected,
-        reported: health.reported,
-        reportedShare:
-          health.expected === 0 ? 0 : health.reported / health.expected,
-        longestOutage: health.longestOutage,
-      },
+      county: station.county,
+      verdict: verdicts.verdict,
+      verdicts: verdicts.pollutants,
+      health: findYear(station.health, year, station.station),
+      series: station.series.map(({ years, ...series }) => ({
+        ...series,
+        ...findYear(years, year, series.pollutant),
+        points: years.map(y => ({
+          year: y.year,
+          verdict: y.judgement.verdict,
+          ratio: y.judgement.ratio,
+        })),
+      })),
     }
   })
+
+export type YearCounty = {
+  county: string
+  stations: string[]
+  verdict: VerdictState
 }
+
+export const getYearCounties = (
+  overview: Overview,
+  year: number,
+  pollutant: string
+): YearCounty[] =>
+  overview.counties.map(county => ({
+    county: county.county,
+    stations: county.stations,
+    verdict: findYear(county.verdicts, year, county.county).pollutants[
+      pollutant
+    ],
+  }))

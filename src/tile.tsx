@@ -1,26 +1,11 @@
-import type { SeriesSummary } from '../scripts/derive.ts'
-import {
-  VERDICT_MARK,
-  VERDICT_WORD,
-  getSeriesVerdict,
-  type Station,
-} from './stations.ts'
 import { count, num, shareText } from './format.ts'
+import { VERDICT_MARK, VERDICT_WORD, type Station } from './stations.ts'
 import type { YearPoint, YearSeries } from './years.ts'
 
 const SCALE_HEADROOM = 1.1
 
 export const findSeries = (station: Station, pollutant: string) =>
   station.series.find(s => s.pollutant === pollutant)
-
-const getPeakRatio = (series: SeriesSummary) => {
-  const verdict = series.verdict
-  if (verdict.kind === 'none' || verdict.maxValue === null) {
-    return null
-  }
-
-  return verdict.maxValue / verdict.limit.value
-}
 
 export const getScaleMax = (stations: Station[], pollutant: string) => {
   let top = 1
@@ -35,35 +20,32 @@ export const getScaleMax = (stations: Station[], pollutant: string) => {
   return top * SCALE_HEADROOM
 }
 
-const getJudgedText = (series: SeriesSummary) => {
-  const verdict = series.verdict
-  if (verdict.kind === 'none') {
-    return verdict.reason
+const getJudgedText = (series: YearSeries) => {
+  if (series.verdict.kind === 'none') {
+    return series.verdict.reason
   }
 
-  const unit = verdict.kind === 'hourly' ? 'hours' : 'days'
-  const judged =
-    verdict.kind === 'hourly' ? verdict.judgedHours : verdict.judgedDays
-  const over = verdict.kind === 'hourly' ? verdict.overHours : verdict.overDays
+  const { over, judged, unit } = series.judgement
   if (over === 0) {
     return `All ${count(judged)} ${unit} within the limit.`
   }
   return `${count(over)} of ${count(judged)} ${unit} over the limit.`
 }
 
-const getPeakText = (series: SeriesSummary) => {
+const getPeakText = (series: YearSeries) => {
   const verdict = series.verdict
-  if (verdict.kind === 'none' || verdict.maxValue === null) {
+  const ratio = series.judgement.ratio
+  if (verdict.kind === 'none' || verdict.maxValue === null || ratio === null) {
     return ''
   }
 
-  const percent = Math.round((verdict.maxValue / verdict.limit.value) * 100)
+  const percent = Math.round(ratio * 100)
   const peak = `${num(verdict.maxValue)} ${series.unit}`
   return `Peak ${peak} (${percent}% of limit)`
 }
 
 const getPointText = (point: YearPoint) => {
-  if (point.reported === 0) {
+  if (point.verdict === 'nodata') {
     return `${point.year}: no readings`
   }
   if (point.ratio === null) {
@@ -90,14 +72,7 @@ const YearStrip = ({ points, year, scaleMax }: YearStripProps) => {
           const text = getPointText(point)
           const height =
             point.ratio === null ? 0 : Math.min(point.ratio / scaleMax, 1) * 100
-          const state =
-            point.reported === 0
-              ? 'missing'
-              : point.ratio === null
-                ? 'none'
-                : point.ratio > 1
-                  ? 'over'
-                  : 'within'
+          const state = point.verdict === 'nodata' ? 'missing' : point.verdict
           return (
             <li
               key={point.year}
@@ -125,8 +100,7 @@ const YearStrip = ({ points, year, scaleMax }: YearStripProps) => {
 type FactsProps = { series: YearSeries; scaleMax: number; year: number }
 
 const Facts = ({ series, scaleMax, year }: FactsProps) => {
-  const verdict = getSeriesVerdict(series)
-  const ratio = getPeakRatio(series)
+  const { verdict, ratio } = series.judgement
   const fill = ratio === null ? 0 : Math.min(ratio / scaleMax, 1) * 100
   const reportedText = shareText(series.reported, series.expected)
 
@@ -173,6 +147,7 @@ type TileProps = {
 export const Tile = (props: TileProps) => {
   const { station, pollutant, year, scaleMax, picked, hot } = props
   const series = findSeries(station, pollutant)
+  const verdict = station.verdicts[pollutant]
   const health = station.health
   const classes = ['c-tile', picked ? 'picked' : '', hot ? 'hot' : '']
 
@@ -181,7 +156,7 @@ export const Tile = (props: TileProps) => {
       className={classes.join(' ').trim()}
       data-testid="c-tile"
       data-station={station.station}
-      data-verdict={series === undefined ? 'absent' : getSeriesVerdict(series)}
+      data-verdict={verdict}
       onPointerEnter={() => props.onHot(station.station)}
       onPointerLeave={() => props.onHot(null)}
       onFocus={() => props.onHot(station.station)}

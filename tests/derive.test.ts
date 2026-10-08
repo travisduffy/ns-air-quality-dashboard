@@ -3,17 +3,18 @@ import { test } from 'node:test'
 import {
   dailyMaxEightHour,
   dailyMeans,
+  dailyVerdict,
   derive,
   eightHourAverages,
   findGaps,
   hourlyVerdict,
+  judge,
   longestGap,
-  readingsKey,
   stationHealth,
 } from '../scripts/derive.ts'
-import { loadData, type Limit } from '../scripts/load.ts'
-import { yearHours } from '../scripts/time.ts'
-import { getYearStations } from '../src/years.ts'
+import { assignCounties, loadCounties, loadData } from '../scripts/load.ts'
+import { readingsKey, worstVerdict, type Limit } from '../shared/contract.ts'
+import { yearHours } from '../shared/time.ts'
 
 const ROOT = new URL('..', import.meta.url).pathname
 const START = Date.UTC(2025, 0, 1)
@@ -171,12 +172,21 @@ test('station health sums the series and names the pollutant of the longest outa
   })
 })
 
-const derived = derive(loadData(ROOT))
+const loaded = loadData(ROOT)
+const derived = derive(loaded, loadCounties(ROOT, loaded))
 
-const find = (station: string, pollutant: string, year = 2025) =>
-  getYearStations(derived.overview, year)
-    .find(x => x.station === station)!
-    .series.find(x => x.pollutant === pollutant)!
+const stationOf = (station: string) =>
+  derived.overview.stations.find(x => x.station === station)!
+
+const healthOf = (station: string, year = 2025) =>
+  stationOf(station).health.find(h => h.year === year)!
+
+const find = (station: string, pollutant: string, year = 2025) => {
+  const { years, ...series } = stationOf(station).series.find(
+    x => x.pollutant === pollutant
+  )!
+  return { ...series, ...years.find(y => y.year === year)! }
+}
 
 const daily = (station: string, pollutant: string, day: string) =>
   derived.readings
@@ -295,34 +305,30 @@ test('repeated rows count once: Aylesford O3 and Pictou TRS in 2025', () => {
 })
 
 test('the health of Sydney in 2025 sums from its series', () => {
-  const sydney = getYearStations(derived.overview, 2025).find(
-    s => s.station === 'Sydney'
-  )!
-  assert.equal(sydney.health.expected, sydney.series.length * 8760)
-  assert.equal(sydney.health.expected, 61320)
-  assert.equal(sydney.health.reported, 57767)
+  const sydney = stationOf('Sydney')
+  const health = healthOf('Sydney')
+  assert.equal(health.expected, sydney.series.length * 8760)
+  assert.equal(health.expected, 61320)
+  assert.equal(health.reported, 57767)
   assert.equal(
-    sydney.health.reported,
-    sydney.series.reduce((a, s) => a + s.reported, 0)
+    health.reported,
+    sydney.series.reduce((a, s) => a + find('Sydney', s.pollutant).reported, 0)
   )
-  assert.partialDeepStrictEqual(sydney.health.longestOutage, {
+  assert.partialDeepStrictEqual(health.longestOutage, {
     hours: 517,
     pollutant: 'CO',
   })
 })
 
 test('the health of a station leaves out a series with no reading in the year', () => {
-  const stations = getYearStations(derived.overview, 2025)
-  const aylesford = stations.find(s => s.station === 'Aylesford')!
-  assert.equal(aylesford.series.length, 5)
-  assert.equal(aylesford.health.expected, 2 * 8760)
+  assert.equal(stationOf('Aylesford').series.length, 5)
+  assert.equal(healthOf('Aylesford').expected, 2 * 8760)
   assert.equal(
-    aylesford.health.reported,
+    healthOf('Aylesford').reported,
     find('Aylesford', 'O3').reported + find('Aylesford', 'PM2.5').reported
   )
-  const halifax = stations.find(s => s.station === 'Halifax')!
-  assert.equal(halifax.health.expected, 7 * 8760)
-  assert.equal(halifax.health.reported, 0)
+  assert.equal(healthOf('Halifax').expected, 7 * 8760)
+  assert.equal(healthOf('Halifax').reported, 0)
 })
 
 test('earlier years of Sydney CO come from the same raw pages', () => {
@@ -349,8 +355,8 @@ test('a series that starts later is missing before it starts, never filled', () 
     missing: 8784,
     gapCount: 1,
   })
-  assert.equal(before.points[0]!.ratio, null)
-  assert.equal(before.points[0]!.reported, 0)
+  assert.equal(before.judgement.ratio, null)
+  assert.equal(before.judgement.verdict, 'nodata')
   assert.equal(find('Halifax Johnston', 'CO', 2018).reported, 8351)
   assert.equal(find('Halifax', 'CO', 2017).reported, 8664)
   assert.equal(find('Halifax', 'CO', 2018).reported, 0)
@@ -390,15 +396,105 @@ test('the overview lists each correction of the source rows', () => {
   assert.match(text, /two different values/)
 })
 
-test('every year of every series has a summary, and the limit sits at the series', () => {
+test('every year of every series has a summary that carries its judgement', () => {
   for (const station of derived.overview.stations) {
     assert.equal(station.health.length, 10)
+    assert.equal(station.verdicts.length, 10)
     for (const series of station.series) {
       assert.equal(series.years.length, 10)
       for (const year of series.years) {
-        assert.equal('limit' in year.verdict, false)
+        assert.deepEqual(year.judgement, judge(year.verdict, year.reported))
       }
-      assert.equal(series.limit === null, series.reason !== null)
     }
   }
+})
+
+test('one judgement gives the verdict, the counts with their unit, and the peak ratio', () => {
+  const hourly = hourlyVerdict([null, 3, 12, 5], START, limit(10))
+  assert.deepEqual(judge(hourly, 3), {
+    verdict: 'over',
+    over: 1,
+    judged: 3,
+    unit: 'hours',
+    ratio: 1.2,
+  })
+  assert.equal(judge(hourlyVerdict([4], START, limit(10)), 1).verdict, 'within')
+  assert.equal(
+    judge(hourlyVerdict([null], START, limit(10)), 0).verdict,
+    'nodata'
+  )
+  const days = dailyMeans(dayWith(20, 30), START, limit(25), 18)
+  assert.partialDeepStrictEqual(
+    judge(dailyVerdict(days, limit(25), 'daily mean'), 20),
+    { verdict: 'over', unit: 'days', ratio: 1.2 }
+  )
+  assert.deepEqual(judge({ kind: 'none', reason: 'test' }, 5), {
+    verdict: 'none',
+    over: 0,
+    judged: 0,
+    unit: null,
+    ratio: null,
+  })
+})
+
+test('a pollutant that a station does not measure is absent, on the station and its county', () => {
+  const codes = derived.overview.pollutants.map(p => p.code)
+  for (const station of derived.overview.stations) {
+    const measured = new Set(station.series.map(s => s.pollutant))
+    for (const v of station.verdicts) {
+      assert.deepEqual(Object.keys(v.pollutants), codes)
+      for (const code of codes) {
+        assert.equal(v.pollutants[code] === 'absent', !measured.has(code))
+      }
+    }
+  }
+  const kings = derived.overview.counties.find(c => c.county === 'Kings, NS')!
+  assert.deepEqual(kings.stations, ['Aylesford', 'Kentville'])
+})
+
+test('a county takes the worst verdict of its stations', () => {
+  assert.equal(worstVerdict(['none', 'within']), 'within')
+  assert.equal(worstVerdict(['within', 'over', 'none']), 'over')
+  assert.equal(worstVerdict(['nodata', 'none']), 'none')
+  assert.equal(worstVerdict(['absent', 'nodata']), 'nodata')
+  assert.equal(worstVerdict(['absent']), 'absent')
+  for (const county of derived.overview.counties) {
+    const members = derived.overview.stations.filter(
+      s => s.county === county.county
+    )
+    for (const { year, pollutants } of county.verdicts) {
+      for (const [code, verdict] of Object.entries(pollutants)) {
+        assert.equal(
+          verdict,
+          worstVerdict(
+            members.map(
+              s => s.verdicts.find(v => v.year === year)!.pollutants[code]!
+            )
+          )
+        )
+      }
+    }
+  }
+})
+
+test('each station carries the county of the build table', () => {
+  assert.equal(stationOf('Sydney').county, 'Cape Breton, NS')
+  assert.equal(stationOf('Aylesford').county, 'Kings, NS')
+})
+
+test('the build fails on a station with no county, and on a county that is not a sector', () => {
+  const table = { Pictou: 'Pictou, NS', Sydney: 'Atlantis, NS' }
+  const sectors = ['Pictou, NS', 'Cape Breton, NS']
+  assert.deepEqual(assignCounties(['Pictou'], sectors, table), {
+    Pictou: 'Pictou, NS',
+  })
+  assert.throws(
+    () => assignCounties(['Pictou', 'Truro'], sectors, table),
+    /station Truro has no county/
+  )
+  assert.throws(
+    () => assignCounties(['Sydney'], sectors, table),
+    /county Atlantis, NS of station Sydney is not a sector of sectors.json/
+  )
+  assert.throws(() => derive(loaded, { Pictou: 'Pictou, NS' }), /has no county/)
 })

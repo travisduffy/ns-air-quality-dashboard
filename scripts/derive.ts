@@ -1,5 +1,22 @@
-import { noLimitReasons, unknownLimitReason } from './limit-choice.ts'
-import type { ChosenLimit, Limit, LoadedData, RawSeries } from './load.ts'
+import {
+  PROJECT,
+  readingsKey,
+  worstVerdict,
+  type CountyOverview,
+  type Daily,
+  type DailyVerdict,
+  type Gap,
+  type Judgement,
+  type Limit,
+  type Outage,
+  type Overview,
+  type SeriesOverview,
+  type SeriesReadings,
+  type StationHealth,
+  type StationReadings,
+  type Verdict,
+  type YearSummary,
+} from '../shared/contract.ts'
 import {
   HOUR_MS,
   dayOf,
@@ -7,142 +24,15 @@ import {
   yearHours,
   yearStamps,
   yearsOf,
-} from './time.ts'
-
-export type Gap = { start: string; end: string; hours: number }
-
-export type DailyVerdict = 'within' | 'over' | 'insufficient'
-export type Daily = {
-  day: string
-  value: number | null
-  readings: number
-  verdict: DailyVerdict
-}
-
-export type Verdict =
-  | {
-      kind: 'hourly'
-      limit: Limit
-      judgedHours: number
-      overHours: number
-      withinHours: number
-      maxValue: number | null
-      maxAt: string | null
-    }
-  | {
-      kind: 'daily'
-      limit: Limit
-      statistic: 'daily mean' | 'daily maximum 8-hour average'
-      days: number
-      judgedDays: number
-      overDays: number
-      withinDays: number
-      insufficientDays: number
-      maxValue: number | null
-      maxDay: string | null
-    }
-  | { kind: 'none'; reason: string }
-
-export type Outage = { hours: number; start: string; end: string }
-
-export type SeriesSummary = {
-  pollutant: string
-  label: string
-  unit: string
-  datasetId: string
-  expected: number
-  reported: number
-  missing: number
-  reportedShare: number
-  gapCount: number
-  longestOutage: Outage | null
-  verdict: Verdict
-}
-
-export type StationHealth = {
-  expected: number
-  reported: number
-  reportedShare: number
-  longestOutage: (Outage & { pollutant: string }) | null
-}
-
-export type YearVerdict =
-  | Omit<Extract<Verdict, { kind: 'hourly' }>, 'limit'>
-  | Omit<Extract<Verdict, { kind: 'daily' }>, 'limit'>
-  | { kind: 'none' }
-
-export type YearSummary = {
-  year: number
-  reported: number
-  gapCount: number
-  longestOutage: Outage | null
-  verdict: YearVerdict
-}
-
-export type SeriesOverview = {
-  pollutant: string
-  label: string
-  unit: string
-  datasetId: string
-  limit: Limit | null
-  reason: string | null
-  first: string | null
-  last: string | null
-  years: YearSummary[]
-}
-
-export type YearHealth = {
-  year: number
-  expected: number
-  reported: number
-  longestOutage: (Outage & { pollutant: string }) | null
-}
-
-export type Overview = {
-  project: string
-  source: {
-    name: string
-    site: string
-    licence: { name: string; url: string }
-    fetchedFirst: string
-    fetchedLast: string
-    corrections: string[]
-  }
-  window: { start: string; end: string; hours: number; timeNote: string }
-  years: number[]
-  stations: {
-    station: string
-    health: YearHealth[]
-    series: SeriesOverview[]
-  }[]
-}
-
-export type SeriesReadings = {
-  pollutant: string
-  label: string
-  unit: string
-  limit: Limit | null
-  values: (number | null)[]
-  gaps: Gap[]
-  daily?: Daily[]
-}
-
-export type StationReadings = {
-  station: string
-  year: number
-  start: string
-  end: string
-  stepHours: 1
-  hours: number
-  series: SeriesReadings[]
-}
+} from '../shared/time.ts'
+import { noLimitReasons, unknownLimitReason } from './limit-choice.ts'
+import type { ChosenLimit, LoadedData, RawSeries } from './load.ts'
 
 export type Derived = {
   overview: Overview
   readings: Map<string, StationReadings>
 }
 
-export const PROJECT = 'NS Air Quality Dashboard'
 export const SOURCE_NAME =
   'Nova Scotia Provincial Ambient Hourly air quality data'
 export const TIME_NOTE =
@@ -254,7 +144,7 @@ const groupByDay = (hours: number, startMs: number) => {
   return days
 }
 
-const judge = (value: number | null, limit: Limit): DailyVerdict => {
+const judgeDay = (value: number | null, limit: Limit): DailyVerdict => {
   if (value === null) return 'insufficient'
   return value > limit.value ? 'over' : 'within'
 }
@@ -277,7 +167,7 @@ export const dailyMeans = (
       }
     }
     const value = n >= minHours ? sum / n : null
-    out.push({ day, value, readings: n, verdict: judge(value, limit) })
+    out.push({ day, value, readings: n, verdict: judgeDay(value, limit) })
   }
   return out
 }
@@ -315,7 +205,7 @@ export const dailyMaxEightHour = (
       if (max === null || a > max) max = a
     }
     const value = valid >= MIN_8H_PER_DAY ? max : null
-    out.push({ day, value, readings, verdict: judge(value, limit) })
+    out.push({ day, value, readings, verdict: judgeDay(value, limit) })
   }
   return out
 }
@@ -431,16 +321,57 @@ export const stationHealth = (rows: HealthRow[]): StationHealth => {
   }
 }
 
-export const readingsKey = (station: string, year: number) =>
-  `${station}/${year}`
-
-const withoutLimit = (verdict: Verdict): YearVerdict => {
-  if (verdict.kind === 'none') return { kind: 'none' }
-  const { limit: _limit, ...rest } = verdict
-  return rest
+export const judge = (verdict: Verdict, reported: number): Judgement => {
+  if (verdict.kind === 'none') {
+    return { verdict: 'none', over: 0, judged: 0, unit: null, ratio: null }
+  }
+  const hourly = verdict.kind === 'hourly'
+  const over = hourly ? verdict.overHours : verdict.overDays
+  const judged = hourly ? verdict.judgedHours : verdict.judgedDays
+  const state = reported === 0 ? 'nodata' : over > 0 ? 'over' : 'within'
+  return {
+    verdict: state,
+    over,
+    judged,
+    unit: hourly ? 'hours' : 'days',
+    ratio:
+      verdict.maxValue === null ? null : verdict.maxValue / verdict.limit.value,
+  }
 }
 
-export const derive = (data: LoadedData): Derived => {
+const getCounties = (
+  stations: Overview['stations'],
+  years: number[],
+  pollutants: string[]
+) => {
+  const counties: CountyOverview[] = []
+  for (const county of new Set(stations.map(s => s.county))) {
+    const members = stations.filter(s => s.county === county)
+    counties.push({
+      county,
+      stations: members.map(s => s.station),
+      verdicts: years.map(year => ({
+        year,
+        pollutants: Object.fromEntries(
+          pollutants.map(p => [
+            p,
+            worstVerdict(
+              members.map(
+                s => s.verdicts.find(v => v.year === year)!.pollutants[p]
+              )
+            ),
+          ])
+        ),
+      })),
+    })
+  }
+  return counties
+}
+
+export const derive = (
+  data: LoadedData,
+  counties: Record<string, string>
+): Derived => {
   const hours = gridHours(data.startMs, data.endMs)
   const start = msStamp(data.startMs)
   const end = msStamp(data.endMs)
@@ -452,6 +383,10 @@ export const derive = (data: LoadedData): Derived => {
     if (list === undefined) byStation.set(s.station, [s])
     else list.push(s)
   }
+
+  const pollutants = [...new Set(data.series.map(s => s.pollutant))].sort(
+    (a, b) => pollutantRank(a) - pollutantRank(b) || (a < b ? -1 : 1)
+  )
 
   const stations: Overview['stations'] = []
   const readings = new Map<string, StationReadings>()
@@ -501,10 +436,14 @@ export const derive = (data: LoadedData): Derived => {
         }
         summaries.push({
           year,
+          expected: slice.length,
           reported,
+          missing: slice.length - reported,
+          reportedShare: reported / slice.length,
           gapCount: gaps.length,
           longestOutage: longestGap(gaps),
-          verdict: withoutLimit(verdict),
+          verdict,
+          judgement: judge(verdict, reported),
         })
         yearRows.get(year)!.push({
           pollutant: raw.pollutant,
@@ -531,24 +470,36 @@ export const derive = (data: LoadedData): Derived => {
         label,
         unit: raw.unit,
         datasetId: raw.datasetId,
-        limit: whole.limit,
-        reason: whole.verdict.kind === 'none' ? whole.verdict.reason : null,
         first: raw.readings.size === 0 ? null : msStamp(first),
         last: raw.readings.size === 0 ? null : msStamp(last),
         years: summaries,
       })
     }
+    const county = counties[station]
+    if (county === undefined) {
+      throw new Error(`station ${station} has no county`)
+    }
     stations.push({
       station,
+      county,
       health: years.map(year => {
         const rows = yearRows.get(year)!
         const active = rows.filter(r => r.reported > 0)
-        const h = stationHealth(active.length > 0 ? active : rows)
+        return { year, ...stationHealth(active.length > 0 ? active : rows) }
+      }),
+      verdicts: years.map(year => {
+        const judged = new Map(
+          series.map(s => [
+            s.pollutant,
+            s.years.find(y => y.year === year)!.judgement.verdict,
+          ])
+        )
         return {
           year,
-          expected: h.expected,
-          reported: h.reported,
-          longestOutage: h.longestOutage,
+          verdict: worstVerdict([...judged.values()]),
+          pollutants: Object.fromEntries(
+            pollutants.map(p => [p, judged.get(p) ?? 'absent'])
+          ),
         }
       }),
       series,
@@ -579,7 +530,9 @@ export const derive = (data: LoadedData): Derived => {
     },
     window: { start, end, hours, timeNote: TIME_NOTE },
     years,
+    pollutants: pollutants.map(code => ({ code, label: pollutantLabel(code) })),
     stations,
+    counties: getCounties(stations, years, pollutants),
   }
   return { overview, readings }
 }

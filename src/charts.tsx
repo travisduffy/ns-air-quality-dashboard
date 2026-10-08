@@ -1,11 +1,11 @@
-import type { Daily, Gap } from '../scripts/derive.ts'
+import type { Daily, Gap } from '../shared/contract.ts'
 import {
   HOUR_MS,
   dayStamps,
   hourSpan,
   msStamp,
   stampMs,
-} from '../scripts/time.ts'
+} from '../shared/time.ts'
 import { num } from './format.ts'
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 

@@ -13,7 +13,7 @@ import {
   yearOf,
   yearStamps,
   yearsOf,
-} from '../scripts/time.ts'
+} from '../shared/time.ts'
 
 const FIRST = stampMs('2025-01-01T00:00:00')
 const LAST = stampMs('2026-01-01T00:00:00')

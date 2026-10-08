@@ -1,40 +1,20 @@
-import type { Overview } from '../scripts/derive.ts'
+import { attachCamera } from './camera.ts'
 import {
-  STATION_COUNTY,
   VERDICT_COLOR,
   VERDICT_WORD,
   getCountyColor,
-  getCountyVerdicts,
   isNovaScotia,
-  type Verdict,
 } from './stations.ts'
-import { MapEngine } from '@travisduffy/map-engine'
+import type { YearCounty } from './years.ts'
+import { MapEngine, type PickResult } from '@travisduffy/map-engine'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 
-type County = { county: string; verdict: Verdict; stations: string[] }
 type Chooser = { county: string; x: number; y: number }
 type Box = [number, number, number, number]
 
 const MAP_URL = `${import.meta.env.BASE_URL}map.png`
 const SECTORS_URL = `${import.meta.env.BASE_URL}sectors.json`
-const PADDING_PX = 16
-const FIT_OPTIONS = { padding: PADDING_PX, keepOnResize: true }
 const CHOOSER_MARGIN_PX = 8
-const ZOOM_FLOOR_RATIO = 0.75
-const DRAG_DEAD_ZONE_PX = 4
-const ZOOM_STEP = 2
-const KEY_PAN_PX = 80
-const KEY_PAN: Record<string, [number, number]> = {
-  ArrowLeft: [1, 0],
-  ArrowRight: [-1, 0],
-  ArrowUp: [0, 1],
-  ArrowDown: [0, -1],
-}
-const KEY_ZOOM: Record<string, number> = {
-  '+': ZOOM_STEP,
-  '=': ZOOM_STEP,
-  '-': 1 / ZOOM_STEP,
-}
 
 const getCountyLabel = (county: string) =>
   `${county.replace(/, NS$/, '')} County`
@@ -65,28 +45,17 @@ const getNovaScotiaBox = (engine: MapEngine) => {
   return box
 }
 
-const getBoxScale = (box: Box, width: number, height: number) =>
-  Math.min(
-    Math.max(1, width - 2 * PADDING_PX) / (box[2] + 1 - box[0]),
-    Math.max(1, height - 2 * PADDING_PX) / (box[3] + 1 - box[1])
-  )
-
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value))
-
 type MapViewProps = {
-  overview: Overview
+  counties: YearCounty[]
   station: string | null
   onPick: (station: string) => void
-  getVerdict: (station: string) => Verdict
   onHover: (stations: string[]) => void
 }
 
 export const MapView = ({
-  overview,
+  counties,
   station,
   onPick,
-  getVerdict,
   onHover,
 }: MapViewProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -102,31 +71,9 @@ export const MapView = ({
   const [hover, setHover] = useState<string | null>(null)
   const [chooser, setChooser] = useState<Chooser | null>(null)
 
-  const stations = useMemo(
-    () =>
-      overview.stations.map(s => ({
-        station: s.station,
-        verdict: getVerdict(s.station),
-      })),
-    [overview, getVerdict]
-  )
-  const counties = useMemo(() => getCountyVerdicts(stations), [stations])
-  const list = useMemo(() => {
-    const out: County[] = []
-    for (const [county, { verdict }] of counties) {
-      out.push({
-        county,
-        verdict,
-        stations: stations
-          .filter(s => STATION_COUNTY[s.station] === county)
-          .map(s => s.station),
-      })
-    }
-    return out
-  }, [stations, counties])
   const byCounty = useMemo(
-    () => new Map(list.map(item => [item.county, item])),
-    [list]
+    () => new Map(counties.map(item => [item.county, item])),
+    [counties]
   )
 
   const onPickRef = useRef(onPick)
@@ -163,8 +110,8 @@ export const MapView = ({
       return
     }
     const mapEngine = new MapEngine()
-    const input = new AbortController()
     let alive = true
+    let disposeCamera = () => {}
     mapEngine.setTickRate(60)
     mapEngine
       .loadMap({ bitmapUrl: MAP_URL, definitionUrl: SECTORS_URL, canvas })
@@ -172,167 +119,21 @@ export const MapView = ({
         if (!alive) {
           return
         }
-        mapEngine.on(
-          'sectorClick',
-          (event: { sectorData: { name: string } }) => {
-            const { x, y } = pointer.current
-            openCountyRef.current(event.sectorData.name, x, y)
-          }
-        )
-        mapEngine.on(
-          'sectorHover',
-          (event: { sectorData: { name: string } } | null) => {
-            const name = event?.sectorData.name
-            const live = name !== undefined && byCountyRef.current.has(name)
-            canvas.dataset.live = String(live)
-            setHover(live ? name : null)
-          }
-        )
+        mapEngine.on('sectorClick', (result: PickResult) => {
+          const [x, y] = mapEngine.project(result.pixelX, result.pixelY)
+          openCountyRef.current(result.sectorData.name, x, y)
+        })
+        mapEngine.on('sectorHover', (result: PickResult | null) => {
+          const name = result?.sectorData.name
+          const live = name !== undefined && byCountyRef.current.has(name)
+          canvas.dataset.live = String(live)
+          setHover(live ? name : null)
+        })
 
         const box = getNovaScotiaBox(mapEngine)
         const [minX, minY, maxX, maxY] = box
         setAspect(`${maxX + 1 - minX} / ${maxY + 1 - minY}`)
-        mapEngine.fitBounds(box, FIT_OPTIONS)
-        const zoomPerScale =
-          (mapEngine.getView()?.zoom ?? 1) /
-          getBoxScale(box, canvas.clientWidth, canvas.clientHeight)
-
-        let engineSize = {
-          width: canvas.clientWidth,
-          height: canvas.clientHeight,
-        }
-        mapEngine.onFrame(() => {
-          const { width, height } = engineSize
-          engineSize = {
-            width: canvas.clientWidth,
-            height: canvas.clientHeight,
-          }
-          const view = mapEngine.getView()
-          if (view === null) {
-            return
-          }
-          const floor =
-            ZOOM_FLOOR_RATIO * zoomPerScale * getBoxScale(box, width, height)
-          const zoom = Math.max(view.zoom, floor)
-          const centerX = clamp(view.centerX, minX, maxX + 1)
-          const centerY = clamp(view.centerY, minY, maxY + 1)
-          if (
-            zoom !== view.zoom ||
-            centerX !== view.centerX ||
-            centerY !== view.centerY
-          ) {
-            mapEngine.setView({ centerX, centerY, zoom })
-          }
-        })
-
-        const panBy = (dx: number, dy: number) => {
-          const view = mapEngine.getView()
-          if (view === null) {
-            return
-          }
-          const scale = view.zoom / zoomPerScale
-          mapEngine.setView({
-            centerX: view.centerX - dx / scale,
-            centerY: view.centerY - dy / scale,
-          })
-        }
-        const zoomAt = (factor: number, x: number, y: number) => {
-          const view = mapEngine.getView()
-          if (view === null) {
-            return
-          }
-          mapEngine.setView({ zoom: view.zoom * factor })
-          const zoom = mapEngine.getView()?.zoom ?? view.zoom
-          const shift = zoomPerScale * (1 / view.zoom - 1 / zoom)
-          mapEngine.setView({
-            centerX: view.centerX + (x - canvas.clientWidth / 2) * shift,
-            centerY: view.centerY + (y - canvas.clientHeight / 2) * shift,
-          })
-        }
-
-        const { signal } = input
-        let drag: { x: number; y: number; left: boolean } | null = null
-        const endDrag = () => {
-          drag = null
-          delete canvas.dataset.dragging
-        }
-        canvas.addEventListener(
-          'pointerdown',
-          event => {
-            if (event.pointerType === 'touch' || event.button > 1) {
-              return
-            }
-            drag = {
-              x: event.clientX,
-              y: event.clientY,
-              left: event.button === 0,
-            }
-          },
-          { signal }
-        )
-        canvas.addEventListener(
-          'pointermove',
-          event => {
-            if (drag === null) {
-              return
-            }
-            if ((event.buttons & (drag.left ? 1 : 4)) === 0) {
-              endDrag()
-              return
-            }
-            const dx = event.clientX - drag.x
-            const dy = event.clientY - drag.y
-            if (canvas.dataset.dragging === undefined) {
-              if (Math.hypot(dx, dy) <= DRAG_DEAD_ZONE_PX) {
-                return
-              }
-              canvas.dataset.dragging = 'true'
-              if (drag.left) {
-                canvas.setPointerCapture(event.pointerId)
-              }
-            }
-            if (drag.left) {
-              panBy(dx, dy)
-            }
-            drag.x = event.clientX
-            drag.y = event.clientY
-          },
-          { signal }
-        )
-        canvas.addEventListener('pointerup', endDrag, { signal })
-        canvas.addEventListener('pointercancel', endDrag, { signal })
-        canvas.addEventListener(
-          'dblclick',
-          event => {
-            event.preventDefault()
-            const rect = canvas.getBoundingClientRect()
-            zoomAt(
-              ZOOM_STEP,
-              event.clientX - rect.left,
-              event.clientY - rect.top
-            )
-          },
-          { signal }
-        )
-        canvas.addEventListener(
-          'keydown',
-          event => {
-            if (event.ctrlKey || event.metaKey || event.altKey) {
-              return
-            }
-            const pan = KEY_PAN[event.key]
-            const factor = KEY_ZOOM[event.key]
-            if (pan !== undefined) {
-              panBy(pan[0] * KEY_PAN_PX, pan[1] * KEY_PAN_PX)
-            } else if (factor !== undefined) {
-              zoomAt(factor, canvas.clientWidth / 2, canvas.clientHeight / 2)
-            } else {
-              return
-            }
-            event.preventDefault()
-          },
-          { signal }
-        )
+        disposeCamera = attachCamera(mapEngine, canvas, box)
         setEngine(mapEngine)
       })
       .catch((reason: unknown) => {
@@ -343,7 +144,7 @@ export const MapView = ({
       })
     return () => {
       alive = false
-      input.abort()
+      disposeCamera()
       setEngine(null)
       setStyled(false)
       mapEngine.destroy()
@@ -494,7 +295,7 @@ export const MapView = ({
         )}
       </div>
       <ul className="county-list" aria-label="Counties with a station">
-        {list.map(item => {
+        {counties.map(item => {
           const picked = item.stations.includes(station ?? '')
           const names = item.stations.join(', ')
           const verdictWord = VERDICT_WORD[item.verdict].toLowerCase()
@@ -534,16 +335,18 @@ export const MapView = ({
         })}
       </ul>
       <p className="legend">
-        {(['over', 'within', 'none', 'nodata'] as const).map(verdict => (
-          <span key={verdict} className="key">
-            <span
-              className="swatch"
-              aria-hidden="true"
-              style={{ background: VERDICT_COLOR[verdict] }}
-            />
-            {VERDICT_WORD[verdict].toLowerCase()}
-          </span>
-        ))}
+        {(['over', 'within', 'none', 'nodata', 'absent'] as const).map(
+          verdict => (
+            <span key={verdict} className="key">
+              <span
+                className="swatch"
+                aria-hidden="true"
+                style={{ background: VERDICT_COLOR[verdict] }}
+              />
+              {VERDICT_WORD[verdict].toLowerCase()}
+            </span>
+          )
+        )}
         <span className="key">
           <span
             className="swatch"

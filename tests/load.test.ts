@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, test } from 'node:test'
 import { loadData } from '../scripts/load.ts'
-import { msStamp } from '../scripts/time.ts'
+import { msStamp } from '../shared/time.ts'
 
 const ROOT = new URL('..', import.meta.url).pathname
 const made: string[] = []

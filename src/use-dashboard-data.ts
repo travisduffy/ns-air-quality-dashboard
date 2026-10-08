@@ -1,4 +1,8 @@
-import type { Overview, StationReadings } from '../scripts/derive.ts'
+import {
+  readingsKey,
+  type Overview,
+  type StationReadings,
+} from '../shared/contract.ts'
 import { getOverview, getReadings } from './api.ts'
 import { getDefaultYear, getYearStations, type YearStation } from './years.ts'
 import { useEffect, useMemo, useState } from 'react'
@@ -48,7 +52,7 @@ export const useDashboardData = () => {
     () => (overview === null ? [] : getYearStations(overview, year)),
     [overview, year]
   )
-  const key = `${station}/${year}`
+  const key = readingsKey(station ?? '', year)
   const data = station === null ? undefined : byKey[key]
   useEffect(() => {
     if (station === null || overview === null || data !== undefined) {
@@ -57,7 +61,7 @@ export const useDashboardData = () => {
     const controller = new AbortController()
     getReadings(station, year, controller.signal)
       .then(readings => {
-        const done = `${readings.station}/${readings.year}`
+        const done = readingsKey(readings.station, readings.year)
         setByKey(known => ({ ...known, [done]: readings }))
         setReadError(known =>
           known !== null && known.key === done ? null : known

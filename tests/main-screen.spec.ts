@@ -1,3 +1,4 @@
+import { getHomeScale } from '../src/camera.ts'
 import { expect, test, type Page } from '@playwright/test'
 
 type Outage = { hours: number; start: string; end: string; pollutant?: string }
@@ -463,7 +464,7 @@ test('a series with no reading in the year shows as missing in the readings', as
   await expect(page.locator('svg[data-chart]')).toHaveCount(0)
 })
 
-const NS_BOX = [179, 192, 1867, 1551]
+const NS_BOX = [179, 192, 1867, 1551] as const
 const PICTOU_PIXEL = [1142, 797]
 const NEW_BRUNSWICK_PIXEL = [400, 500]
 const WATER_RGB = [0xae, 0xbf, 0xca]
@@ -480,10 +481,7 @@ const getHomePoint = (
   [x, y]: number[]
 ) => {
   const [minX, minY, maxX, maxY] = NS_BOX
-  const scale = Math.min(
-    (canvas.width - 32) / (maxX + 1 - minX),
-    (canvas.height - 32) / (maxY + 1 - minY)
-  )
+  const scale = getHomeScale(NS_BOX, canvas.width, canvas.height)
   return {
     x: canvas.x + canvas.width / 2 + (x + 0.5 - (minX + maxX + 1) / 2) * scale,
     y: canvas.y + canvas.height / 2 + (y + 0.5 - (minY + maxY + 1) / 2) * scale,

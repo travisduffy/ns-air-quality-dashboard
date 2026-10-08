@@ -1,23 +1,11 @@
-import {
-  VERDICT_MARK,
-  VERDICT_WORD,
-  getSeriesVerdict,
-  getStationVerdict,
-} from './stations.ts'
 import './map.css'
 import { Footer, Health, Readings } from './panels.tsx'
 import './screen.css'
-import { Tile, findSeries, getScaleMax } from './tile.tsx'
+import { VERDICT_MARK, VERDICT_WORD } from './stations.ts'
+import { Tile, getScaleMax } from './tile.tsx'
 import type { DashboardData } from './use-dashboard-data.ts'
-import {
-  Suspense,
-  lazy,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { getYearCounties } from './years.ts'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 
 const DEFAULT_POLLUTANT = 'PM2.5'
 
@@ -37,18 +25,6 @@ const MapView = lazy(() =>
       }
     })
 )
-
-const getPollutants = (overview: DashboardData['overview']) => {
-  const found = new Map<string, string>()
-  for (const station of overview.stations) {
-    for (const series of station.series) {
-      if (!found.has(series.pollutant)) {
-        found.set(series.pollutant, series.label)
-      }
-    }
-  }
-  return [...found].map(([code, label]) => ({ code, label }))
-}
 
 type StationSearchProps = {
   overview: DashboardData['overview']
@@ -89,7 +65,7 @@ const StationSearch = ({ overview, onPick }: StationSearchProps) => {
 
 export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
   const { overview, year, setYear, stations, station, setStation } = dashboard
-  const pollutants = useMemo(() => getPollutants(overview), [overview])
+  const pollutants = overview.pollutants
   const [pollutant, setPollutant] = useState(
     pollutants.some(p => p.code === DEFAULT_POLLUTANT)
       ? DEFAULT_POLLUTANT
@@ -110,14 +86,10 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
   if (station !== null && picked === undefined) {
     throw new Error(`the overview holds no station ${station}`)
   }
-  const overall = picked === undefined ? null : getStationVerdict(picked)
-  const getVerdict = useCallback(
-    (name: string) => {
-      const found = stations.find(s => s.station === name)
-      const series = found && findSeries(found, pollutant)
-      return series ? getSeriesVerdict(series) : 'none'
-    },
-    [stations, pollutant]
+  const overall = picked === undefined ? null : picked.verdict
+  const counties = useMemo(
+    () => getYearCounties(overview, year, pollutant),
+    [overview, year, pollutant]
   )
 
   const pick = (name: string) => {
@@ -337,10 +309,9 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
           }
         >
           <MapView
-            overview={overview}
+            counties={counties}
             station={station}
             onPick={pick}
-            getVerdict={getVerdict}
             onHover={setHot}
           />
         </Suspense>

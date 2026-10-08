@@ -1,5 +1,5 @@
 {
-  "include": ["src", "scripts", "tests", "*.ts"],
+  "include": ["src", "scripts", "shared", "tests", "*.ts"],
   "compilerOptions": {
     "target": "es2023",
     "strict": true,
