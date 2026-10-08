@@ -86,7 +86,7 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
   if (station !== null && picked === undefined) {
     throw new Error(`the overview holds no station ${station}`)
   }
-  const overall = picked === undefined ? null : picked.verdict
+  const verdict = picked === undefined ? null : picked.verdicts[pollutant]
   const counties = useMemo(
     () => getYearCounties(overview, year, pollutant),
     [overview, year, pollutant]
@@ -193,7 +193,7 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
       </header>
 
       <div className="c-panel">
-        {open && picked !== undefined && overall !== null ? (
+        {open && picked !== undefined && verdict !== null ? (
           <section
             id="c-detail"
             className="c-detail"
@@ -208,13 +208,14 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
               <h2 id="c-detail-h" tabIndex={-1} ref={headingRef}>
                 {picked.station}
               </h2>
-              <p className="c-verdict">
-                <span aria-hidden="true">{VERDICT_MARK[overall]}</span>{' '}
-                <strong>{VERDICT_WORD[overall]}</strong>
+              <p className="c-verdict" data-testid="c-detail-verdict">
+                {pollutant}{' '}
+                <span aria-hidden="true">{VERDICT_MARK[verdict]}</span>{' '}
+                <strong>{VERDICT_WORD[verdict]}</strong>
               </p>
             </div>
             <div className="layout">
-              <Readings dashboard={dashboard} />
+              <Readings dashboard={dashboard} pollutant={pollutant} />
               <Health
                 stations={stations}
                 picked={picked.station}
@@ -228,11 +229,13 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
             {label} at each station, {year}
           </h2>
           <p className="c-note">
-            Bar: the {year} peak against the limit tick. Cells: the yearly peak,{' '}
-            {first} - {last}. Pick a tile or a county for the full readings.
+            Colour: the 3-year verdict. Bar: the peak day. Cells: the yearly
+            peak, {first} - {last}. Pick a tile or a county for the full
+            readings.
           </p>
           <p className="c-note" data-testid="c-limits-note">
-            Every year is judged against the same current limits.
+            Every year is judged by the official 3-year statistic of the current
+            limits.
           </p>
           <div className="c-tiles">
             {stations.map(s => (

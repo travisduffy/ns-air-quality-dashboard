@@ -44,6 +44,22 @@ export type Verdict =
     }
   | { kind: 'none'; reason: string }
 
+export type MetricStatistic =
+  | 'annual 98th percentile of daily means'
+  | 'annual 4th highest daily maximum 8-hour average'
+
+export type Annual = { year: number; value: number | null; complete: boolean }
+
+export type MetricBasis = 'three years' | 'two years' | 'partial' | 'none'
+
+export type Metric = {
+  statistic: MetricStatistic
+  annual: Annual
+  basis: MetricBasis
+  years: { year: number; value: number }[]
+  value: number | null
+}
+
 export type VerdictState = 'over' | 'within' | 'none' | 'nodata' | 'absent'
 
 const VERDICT_RANK: Record<VerdictState, number> = {
@@ -86,6 +102,7 @@ export type YearSummary = {
   gapCount: number
   longestOutage: Outage | null
   verdict: Verdict
+  metric: Metric | null
   judgement: Judgement
 }
 

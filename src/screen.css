@@ -371,6 +371,18 @@
     height: auto;
   }
 }
+@media (max-width: 899px) {
+  .c-page {
+    display: flex;
+    flex-direction: column;
+  }
+  .c-map {
+    order: 1;
+  }
+  .c-panel {
+    order: 2;
+  }
+}
 @media (max-width: 699px) {
   .c-top {
     padding: 12px;

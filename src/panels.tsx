@@ -55,6 +55,18 @@ const Verdict = ({ s }: { s: YearSeries }) => {
     )
   }
   const limit = `${num(v.limit.value)} ${s.unit}`
+  const statistic = s.metric?.value ?? null
+  if (verdict === 'within' && statistic !== null) {
+    return (
+      <p className="verdict within" data-verdict="within">
+        <strong>{VERDICT_WORD.within}:</strong> 3-year statistic{' '}
+        {num(statistic)} {s.unit}, limit {limit}.
+        {over === 0
+          ? ''
+          : ` ${count(over)} of ${count(judged)} ${unit} above ${limit}.`}
+      </p>
+    )
+  }
   const when = v.kind === 'hourly' ? `at ${v.maxAt}` : `on ${v.maxDay}`
   const high =
     v.maxValue === null ? '' : ` Highest: ${num(v.maxValue)} ${s.unit} ${when}.`
@@ -217,7 +229,10 @@ const SeriesCard = (props: {
   )
 }
 
-export const Readings = (props: { dashboard: DashboardData }) => {
+export const Readings = (props: {
+  dashboard: DashboardData
+  pollutant: string
+}) => {
   const {
     overview,
     year,
@@ -246,10 +261,9 @@ export const Readings = (props: { dashboard: DashboardData }) => {
   if (picked === undefined) {
     throw new Error(`the overview holds no station ${station}`)
   }
-  const ordered = [...picked.series].sort(
-    (x, y) =>
-      Number(x.verdict.kind === 'none') - Number(y.verdict.kind === 'none')
-  )
+  const rank = (s: YearSeries) =>
+    s.pollutant === props.pollutant ? 0 : s.verdict.kind === 'none' ? 2 : 1
+  const ordered = [...picked.series].sort((x, y) => rank(x) - rank(y))
   return (
     <section
       aria-labelledby="readings-h"

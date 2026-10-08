@@ -29,7 +29,7 @@ const getJudgedText = (series: YearSeries) => {
   if (over === 0) {
     return `All ${count(judged)} ${unit} within the limit.`
   }
-  return `${count(over)} of ${count(judged)} ${unit} over the limit.`
+  return `${count(over)} of ${count(judged)} ${unit} above the limit`
 }
 
 const getPeakText = (series: YearSeries) => {

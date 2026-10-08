@@ -5,9 +5,12 @@ import {
   type CountyOverview,
   type Daily,
   type DailyVerdict,
+  type Annual,
   type Gap,
   type Judgement,
   type Limit,
+  type Metric,
+  type MetricStatistic,
   type Outage,
   type Overview,
   type SeriesOverview,
@@ -39,6 +42,10 @@ export const TIME_NOTE =
   'Times are as published. The source states no time zone.'
 export const MIN_8H_READINGS = 6
 export const MIN_8H_PER_DAY = 18
+export const MIN_YEAR_DAY_SHARE = 0.75
+export const MIN_QUARTER_DAY_SHARE = 0.6
+export const MIN_OZONE_SEASON_DAY_SHARE = 0.75
+export const METRIC_YEARS = 3
 
 const labels: [string, string][] = [
   ['O3', 'Ozone'],
@@ -243,6 +250,101 @@ export const dailyVerdict = (
   }
 }
 
+export const roundTenth = (v: number) => Math.round(v * 10) / 10
+
+export const percentile98 = (values: number[]) => {
+  if (values.length === 0) return null
+  const sorted = [...values].sort((a, b) => b - a)
+  const i = Math.floor((98 * values.length) / 100)
+  return sorted[values.length - i - 1]!
+}
+
+export const fourthHighest = (values: number[]) =>
+  [...values].sort((a, b) => b - a)[3] ?? null
+
+const monthOf = (day: string) => Number(day.slice(5, 7))
+
+const hasShare = (days: Daily[], share: number) =>
+  days.length > 0 &&
+  days.filter(d => d.value !== null).length >= share * days.length
+
+export const isAnnualComplete = (days: Daily[], statistic: MetricStatistic) => {
+  if (statistic === 'annual 4th highest daily maximum 8-hour average') {
+    const season = days.filter(d => monthOf(d.day) >= 4 && monthOf(d.day) <= 9)
+    return hasShare(season, MIN_OZONE_SEASON_DAY_SHARE)
+  }
+  const quarters = [1, 4, 7, 10].map(first =>
+    days.filter(d => monthOf(d.day) >= first && monthOf(d.day) < first + 3)
+  )
+  return (
+    hasShare(days, MIN_YEAR_DAY_SHARE) &&
+    quarters.every(q => hasShare(q, MIN_QUARTER_DAY_SHARE))
+  )
+}
+
+export const annualStatistic = (
+  year: number,
+  days: Daily[],
+  limit: Limit,
+  statistic: MetricStatistic
+): Annual => {
+  const values = days.flatMap(d =>
+    d.value === null ? [] : [roundTenth(d.value)]
+  )
+  const found =
+    statistic === 'annual 4th highest daily maximum 8-hour average'
+      ? fourthHighest(values)
+      : percentile98(values)
+  const value = found === null ? null : roundTenth(found)
+  return {
+    year,
+    value,
+    complete:
+      value !== null &&
+      (isAnnualComplete(days, statistic) || value > limit.value),
+  }
+}
+
+export const threeYearMetric = (
+  annuals: Annual[],
+  year: number,
+  statistic: MetricStatistic
+): Metric => {
+  const annual = annuals.find(a => a.year === year) ?? {
+    year,
+    value: null,
+    complete: false,
+  }
+  const window = annuals.filter(
+    a => a.year > year - METRIC_YEARS && a.year <= year
+  )
+  const complete = window.filter(a => a.complete)
+  const used = complete.length >= 2 ? complete : window
+  const years = used.flatMap(a =>
+    a.value === null ? [] : [{ year: a.year, value: a.value }]
+  )
+  const basis =
+    years.length === 0
+      ? 'none'
+      : complete.length === 3
+        ? 'three years'
+        : complete.length === 2
+          ? 'two years'
+          : 'partial'
+  const value =
+    years.length === 0
+      ? null
+      : Math.round(years.reduce((sum, y) => sum + y.value, 0) / years.length)
+  return { statistic, annual, basis, years, value }
+}
+
+export const metricStatistic = (
+  statistic: 'daily mean' | 'daily maximum 8-hour average'
+): MetricStatistic =>
+  statistic === 'daily mean'
+    ? 'annual 98th percentile of daily means'
+    : 'annual 4th highest daily maximum 8-hour average'
+
 type Derivation = { verdict: Verdict; limit: Limit | null; daily?: Daily[] }
 
 export const judgeSeries = (
@@ -321,14 +423,22 @@ export const stationHealth = (rows: HealthRow[]): StationHealth => {
   }
 }
 
-export const judge = (verdict: Verdict, reported: number): Judgement => {
+export const judge = (
+  verdict: Verdict,
+  reported: number,
+  metric: Metric | null = null
+): Judgement => {
   if (verdict.kind === 'none') {
     return { verdict: 'none', over: 0, judged: 0, unit: null, ratio: null }
   }
   const hourly = verdict.kind === 'hourly'
   const over = hourly ? verdict.overHours : verdict.overDays
   const judged = hourly ? verdict.judgedHours : verdict.judgedDays
-  const state = reported === 0 ? 'nodata' : over > 0 ? 'over' : 'within'
+  const isOver =
+    metric === null || metric.value === null
+      ? over > 0
+      : metric.value > verdict.limit.value
+  const state = reported === 0 ? 'nodata' : isOver ? 'over' : 'within'
   return {
     verdict: state,
     over,
@@ -418,6 +528,21 @@ export const derive = (
         if (ms < first) first = ms
         if (ms > last) last = ms
       }
+      const statistic =
+        whole.verdict.kind === 'daily'
+          ? metricStatistic(whole.verdict.statistic)
+          : null
+      const annuals =
+        statistic === null || whole.limit === null
+          ? []
+          : years.map(year =>
+              annualStatistic(
+                year,
+                (whole.daily ?? []).filter(d => d.day.startsWith(`${year}-`)),
+                whole.limit!,
+                statistic
+              )
+            )
       const summaries: YearSummary[] = []
       for (const year of years) {
         const range = yearStamps(year)
@@ -434,6 +559,8 @@ export const derive = (
           )
           verdict = dailyVerdict(days, whole.limit, whole.verdict.statistic)
         }
+        const metric =
+          statistic === null ? null : threeYearMetric(annuals, year, statistic)
         summaries.push({
           year,
           expected: slice.length,
@@ -443,7 +570,8 @@ export const derive = (
           gapCount: gaps.length,
           longestOutage: longestGap(gaps),
           verdict,
-          judgement: judge(verdict, reported),
+          metric,
+          judgement: judge(verdict, reported, metric),
         })
         yearRows.get(year)!.push({
           pollutant: raw.pollutant,

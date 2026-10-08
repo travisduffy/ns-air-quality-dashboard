@@ -1,4 +1,5 @@
 import { getHomeScale } from '../src/camera.ts'
+import { VERDICT_MARK, VERDICT_WORD } from '../src/stations.ts'
 import { expect, test, type Page } from '@playwright/test'
 
 type Outage = { hours: number; start: string; end: string; pollutant?: string }
@@ -120,7 +121,7 @@ for (const width of [1440, 390]) {
       expect(Math.abs(map.x - width / 2)).toBeLessThanOrEqual(1)
       expect(Math.abs(map.x + map.width - width)).toBeLessThanOrEqual(1)
     } else {
-      expect(panel.y + panel.height).toBeLessThanOrEqual(map.y)
+      expect(map.y + map.height).toBeLessThanOrEqual(panel.y)
     }
     const overflow = await page.evaluate(
       () =>
@@ -130,6 +131,56 @@ for (const width of [1440, 390]) {
     expect(overflow).toBeLessThanOrEqual(0)
   })
 }
+
+test('the detail view opens on the picked pollutant', async ({ page }) => {
+  await page.goto('./')
+  await openStation(page, 'Aylesford')
+  const cards = page.getByTestId('c-detail').locator('[data-series]')
+  const codes = await cards.evaluateAll(elements =>
+    elements.map(element => element.getAttribute('data-series')!)
+  )
+  expect(codes.length).toBeGreaterThan(1)
+  await page.getByRole('button', { name: '← All stations' }).click()
+
+  for (const code of codes) {
+    await page
+      .getByTestId('c-pollutant')
+      .getByText(code, { exact: true })
+      .click()
+    await openStation(page, 'Aylesford')
+    await expect(cards.first()).toHaveAttribute('data-series', code)
+    await page.getByRole('button', { name: '← All stations' }).click()
+  }
+})
+
+test('the detail header judges the picked pollutant only', async ({ page }) => {
+  await page.goto('./')
+  const tile = page.locator('[data-testid="c-tile"][data-station="Aylesford"]')
+  const verdicts = new Set<string>()
+  for (const button of await page.getByTestId('c-pollutant').all()) {
+    const code = await button.innerText()
+    await button.click()
+    const verdict = (await tile.getAttribute(
+      'data-verdict'
+    )) as keyof typeof VERDICT_WORD
+    verdicts.add(verdict)
+    await openStation(page, 'Aylesford')
+    await expect(page.getByTestId('c-detail-verdict')).toHaveText(
+      `${code} ${VERDICT_MARK[verdict]} ${VERDICT_WORD[verdict]}`
+    )
+    await page.getByRole('button', { name: '← All stations' }).click()
+  }
+  expect(verdicts.size).toBeGreaterThan(1)
+})
+
+test('the map comes before the tiles on a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('./')
+  const map = (await page.locator('.c-map').boundingBox())!
+  const tiles = (await page.locator('.c-tiles').boundingBox())!
+  expect(map.y + map.height).toBeLessThanOrEqual(tiles.y)
+  expect(map.y).toBeLessThan(844)
+})
 
 test('the map has no pins, and a county with one station opens it', async ({
   page,
@@ -367,7 +418,7 @@ test('the header says that the data is historical, and nothing says live', async
   )
   await expect(page.locator('footer')).toContainText('This screen is not live')
   await expect(page.getByTestId('c-limits-note')).toHaveText(
-    'Every year is judged against the same current limits.'
+    'Every year is judged by the official 3-year statistic of the current limits.'
   )
   const text = (await page.locator('body').innerText()).toLowerCase()
   for (const word of ['real-time', 'realtime', 'up to date', 'latest']) {
@@ -380,13 +431,13 @@ test('the year selector holds 2016 to 2025, opens on 2025, and drives the tiles'
 }) => {
   await page.goto('./')
   const select = page.getByTestId('c-year-select')
-  expect(await select.locator('option').allTextContents()).toEqual(
+  await expect(select.locator('option')).toHaveText(
     Array.from({ length: 10 }, (_, i) => String(2016 + i))
   )
   await expect(select).toHaveValue('2025')
   const tile = (name: string) =>
     page.locator(`[data-testid="c-tile"][data-station="${name}"]`)
-  await expect(tile('Aylesford')).toHaveAttribute('data-verdict', 'over')
+  await expect(tile('Aylesford')).toHaveAttribute('data-verdict', 'within')
   await expect(tile('Halifax')).toHaveAttribute('data-verdict', 'nodata')
   await select.selectOption('2016')
   await expect(page.locator('#c-grid-h')).toContainText('2016')

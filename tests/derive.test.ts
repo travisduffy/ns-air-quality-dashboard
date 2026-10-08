@@ -403,7 +403,10 @@ test('every year of every series has a summary that carries its judgement', () =
     for (const series of station.series) {
       assert.equal(series.years.length, 10)
       for (const year of series.years) {
-        assert.deepEqual(year.judgement, judge(year.verdict, year.reported))
+        assert.deepEqual(
+          year.judgement,
+          judge(year.verdict, year.reported, year.metric)
+        )
       }
     }
   }
