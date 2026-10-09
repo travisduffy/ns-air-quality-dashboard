@@ -29,6 +29,26 @@
   font-size: 0.8rem;
   color: var(--muted);
 }
+.c-credit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.c-credit a {
+  color: var(--accent);
+}
+.c-repo {
+  display: inline-flex;
+  margin-left: 6px;
+  padding: 2px;
+  border-radius: 4px;
+}
+.c-repo:hover {
+  color: var(--ink);
+}
 .c-pollutants {
   min-width: 0;
 }

@@ -1,4 +1,5 @@
 import { PROJECT } from '../shared/contract.ts'
+import { Credit } from './credit.tsx'
 import './map.css'
 import './screen.css'
 import { useEffect, useState, type CSSProperties } from 'react'
@@ -80,6 +81,7 @@ export const ShellSkeleton = () => {
           <p aria-hidden="true">
             <Bone className="sk-line sk-subtitle" />
           </p>
+          <Credit />
         </div>
         <div className="c-year" aria-hidden="true">
           <span>Year</span>

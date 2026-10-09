@@ -1,4 +1,5 @@
 import { worstVerdict } from '../shared/contract.ts'
+import { Credit } from './credit.tsx'
 import './map.css'
 import { Footer, Health, HandoverNote, Readings } from './panels.tsx'
 import './screen.css'
@@ -146,6 +147,7 @@ export const Screen = ({ dashboard }: { dashboard: DashboardData }) => {
           <p>
             Historical hourly readings {first} - {last}, Nova Scotia Open Data.
           </p>
+          <Credit />
         </div>
         <label className="c-year">
           <span>Year</span>
